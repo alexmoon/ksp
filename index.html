@@ -3,19 +3,27 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <title>Mission Plotter by alexmoon</title>
+    <title>KSP Mission Plotter by alexmoon</title>
 
-    <link rel="stylesheet" href="stylesheets/styles.css">
-    <link rel="stylesheet" href="stylesheets/pygment_trac.css">
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="stylesheets/bootstrap.min.css" rel="stylesheet" media="screen">
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
+      
+    <script src="javascripts/jquery-2.0.0.min.js" type="text/javascript"></script>
+    <script src="javascripts/jcanvas.min.js" type="text/javascript"></script>
+    <script src="javascripts/numeric-1.2.6.min.js" type="text/javascript"></script>
+    <script src="javascripts/quaternion.js" type="text/javascript"></script>
+    <script src="javascripts/orbit.js" type="text/javascript"></script>
+    <script src="javascripts/celestialbodies.js" type="text/javascript"></script>
+    <script src="javascripts/porkchop.js" type="text/javascript"></script>
+    <script src="javascripts/bootstrap.min.js" type="text/javascript"></script>
   </head>
   <body>
-    <div class="wrapper">
+    <div class="container">
       <header>
-        <h1>Mission Plotter</h1>
+        <h1>KSP Mission Plotter</h1>
         <p>for Kerbal Space Program</p>
 
         <p class="view"><a href="https://github.com/alexmoon/ksp">View the Project on GitHub <small>alexmoon/ksp</small></a></p>
@@ -28,39 +36,113 @@
         </ul>
       </header>
       <section>
-        <h3>Welcome to GitHub Pages.</h3>
+        <h3>Porkchop Plot Generator</h3>
+        <form class="form-horizontal" id="porkchopForm">
+          <fieldset>
+            <div class="control-group">
+              <label class="control-label" for="origin">Origin:</label>
+              <div class="controls">
+                <select id="origin">
+									<option>Moho</option>
+									<option>Eve</option>
+                  <optgroup label="Eve's moons:">
+										<option>Gilly</option>
+									</optgroup>
+									<option selected="true">Kerbin</option>
+									<optgroup label="Kerbin's moons:">
+										<option>Mun</option>
+										<option>Minmus</option>
+									</optgroup>
+									<option>Duna</option>
+                  <optgroup label="Duna's moons:">
+									  <option>Ike</option>
+									</optgroup>
+									<option>Dres</option>
+                  <option>Jool</option>
+									<optgroup label="Jool's moons:">
+										<option>Laythe</option>
+										<option>Vall</option>
+										<option>Tylo</option>
+										<option>Bop</option>
+										<option>Pol</option>
+									</optgroup>
+									<option>Eeloo</option>
+                </select>
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="initialOrbit">Initial orbit:</label>
+              <div class="controls">
+                <input type="text" id="initialOrbit"></input> km (above surface level)
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="destination">Destination:</label>
+              <div class="controls">
+                <select id="destination">
+									<option>Moho</option>
+									<option>Eve</option>
+                  <optgroup label="Eve's moons:">
+										<option>Gilly</option>
+									</optgroup>
+									<option>Kerbin</option>
+									<optgroup label="Kerbin's moons:">
+										<option>Mun</option>
+										<option>Minmus</option>
+									</optgroup>
+									<option selected="true">Duna</option>
+                  <optgroup label="Duna's moons:">
+									  <option>Ike</option>
+									</optgroup>
+									<option>Dres</option>
+                  <option>Jool</option>
+									<optgroup label="Jool's moons:">
+										<option>Laythe</option>
+										<option>Vall</option>
+										<option>Tylo</option>
+										<option>Bop</option>
+										<option>Pol</option>
+									</optgroup>
+									<option>Eeloo</option>
+                </select>
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="finalOrbit">Final orbit:</label>
+              <div class="controls">
+                <input type="text" id="finalOrbit"></input> km (above surface level)
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="earliestDepartureYear">Earliest departure:</label>
+              <div class="controls">
+                Year <input type="number" id="earliestDepartureYear" style="width: 63px" value="1" min="1" step="1"></input>
+                day <input type="number" id="earliestDepartureDay" style="width: 63px" value="1" min="1" step="1"></input> (from epoch)
+              </div>
+            </div>
+            <div class="control-group">
+              <label class="control-label" for="earliestArrivalYear">Earliest arrival:</label>
+              <div class="controls">
+                Year <input type="number" id="earliestArrivalYear" style="width: 63px" value="1"></input>
+                day <input type="number" id="earliestArrivalDay" style="width: 63px" value="1"></input> (from epoch)
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" id="porkchopSubmit" class="btn btn-primary">Create porkchop plot!</button>
+              <button type="reset" id="reset" class="btn">Reset</button>
+          </fieldset>
+        </form>
+        
+        <div id="porkchopProgress" class="progress">
+          <div class="bar" style="width: 0; transition: width 0.1s"></div>
+        </div>
+        
+        <canvas width="720" height="720" id="porkchopCanvas"></canvas>
 
-<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
-
-<pre><code>$ cd your_repo_root/repo_name
-$ git fetch origin
-$ git checkout gh-pages
-</code></pre>
-
-<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
-
-<h3>Designer Templates</h3>
-
-<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
-
-<h3>Rather Drive Stick?</h3>
-
-<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
-
-<h3>Authors and Contributors</h3>
-
-<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
-
-<h3>Support or Contact</h3>
-
-<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
       </section>
       <footer>
         <p>This project is maintained by <a href="https://github.com/alexmoon">alexmoon</a></p>
-        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://github.com/orderedlist">orderedlist</a></small></p>
       </footer>
     </div>
-    <script src="javascripts/scale.fix.js"></script>
-    
   </body>
 </html>
