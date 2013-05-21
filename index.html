@@ -37,108 +37,142 @@
       </header>
       <section>
         <h3>Porkchop Plot Generator</h3>
-        <form class="form-horizontal" id="porkchopForm">
-          <fieldset>
-            <div class="control-group">
-              <label class="control-label" for="origin">Origin:</label>
-              <div class="controls">
-                <select id="origin">
-									<option>Moho</option>
-									<option>Eve</option>
-                  <optgroup label="Eve's moons:">
-										<option>Gilly</option>
-									</optgroup>
-									<option selected="true">Kerbin</option>
-									<optgroup label="Kerbin's moons:">
-										<option>Mun</option>
-										<option>Minmus</option>
-									</optgroup>
-									<option>Duna</option>
-                  <optgroup label="Duna's moons:">
-									  <option>Ike</option>
-									</optgroup>
-									<option>Dres</option>
-                  <option>Jool</option>
-									<optgroup label="Jool's moons:">
-										<option>Laythe</option>
-										<option>Vall</option>
-										<option>Tylo</option>
-										<option>Bop</option>
-										<option>Pol</option>
-									</optgroup>
-									<option>Eeloo</option>
-                </select>
-              </div>
+        <div class="row">
+          <div class="span7">
+            <h4>Mission parameters</h4>
+            <form class="form-horizontal" id="porkchopForm">
+              <fieldset>
+                <div class="control-group">
+                  <label class="control-label" for="originSelect">Origin:</label>
+                  <div class="controls">
+                    <select id="originSelect">
+    									<option>Moho</option>
+    									<option>Eve</option>
+                      <optgroup label="Eve's moons:">
+    										<option>Gilly</option>
+    									</optgroup>
+    									<option selected="true">Kerbin</option>
+    									<optgroup label="Kerbin's moons:">
+    										<option>Mun</option>
+    										<option>Minimus</option>
+    									</optgroup>
+    									<option>Duna</option>
+                      <optgroup label="Duna's moons:">
+    									  <option>Ike</option>
+    									</optgroup>
+    									<option>Dres</option>
+                      <option>Jool</option>
+    									<optgroup label="Jool's moons:">
+    										<option>Laythe</option>
+    										<option>Vall</option>
+    										<option>Tylo</option>
+    										<option>Bop</option>
+    										<option>Pol</option>
+    									</optgroup>
+    									<option>Eeloo</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="control-group">
+                  <label class="control-label" for="initialOrbit">Initial orbit:</label>
+                  <div class="controls">
+                    <input type="text" id="initialOrbit"></input> km (above surface)
+                  </div>
+                </div>
+                <div class="control-group">
+                  <label class="control-label" for="destinationSelect">Destination:</label>
+                  <div class="controls">
+                    <select id="destinationSelect" disabled></select>
+                  </div>
+                </div>
+                <div class="control-group">
+                  <label class="control-label" for="finalOrbit">Final orbit:</label>
+                  <div class="controls">
+                    <input type="text" id="finalOrbit"></input> km (above surface)
+                  </div>
+                </div>
+                <div class="control-group">
+                  <label class="control-label" for="earliestDepartureYear">Earliest departure:</label>
+                  <div class="controls">
+                    Year <input type="number" id="earliestDepartureYear" style="width: 63px" value="1" min="1" step="1"></input>
+                    day <input type="number" id="earliestDepartureDay" style="width: 63px" value="1" min="1" step="1"></input> (from epoch)
+                  </div>
+                </div>
+                <div class="form-actions">
+                  <button type="submit" id="porkchopSubmit" class="btn btn-primary">Create porkchop plot!</button>
+                  <button type="reset" id="reset" class="btn">Reset</button>
+              </fieldset>
+            </form>
+            
+            <h5 class="pull-left" style="margin-top: 0; margin-right: 20px">Calculating...</h5>
+            <div id="porkchopProgress" class="progress">
+              <div class="bar" style="width: 0; transition: width 0.1s linear"></div>
             </div>
-            <div class="control-group">
-              <label class="control-label" for="initialOrbit">Initial orbit:</label>
-              <div class="controls">
-                <input type="text" id="initialOrbit"></input> km (above surface level)
-              </div>
-            </div>
-            <div class="control-group">
-              <label class="control-label" for="destination">Destination:</label>
-              <div class="controls">
-                <select id="destination">
-									<option>Moho</option>
-									<option>Eve</option>
-                  <optgroup label="Eve's moons:">
-										<option>Gilly</option>
-									</optgroup>
-									<option>Kerbin</option>
-									<optgroup label="Kerbin's moons:">
-										<option>Mun</option>
-										<option>Minmus</option>
-									</optgroup>
-									<option selected="true">Duna</option>
-                  <optgroup label="Duna's moons:">
-									  <option>Ike</option>
-									</optgroup>
-									<option>Dres</option>
-                  <option>Jool</option>
-									<optgroup label="Jool's moons:">
-										<option>Laythe</option>
-										<option>Vall</option>
-										<option>Tylo</option>
-										<option>Bop</option>
-										<option>Pol</option>
-									</optgroup>
-									<option>Eeloo</option>
-                </select>
-              </div>
-            </div>
-            <div class="control-group">
-              <label class="control-label" for="finalOrbit">Final orbit:</label>
-              <div class="controls">
-                <input type="text" id="finalOrbit"></input> km (above surface level)
-              </div>
-            </div>
-            <div class="control-group">
-              <label class="control-label" for="earliestDepartureYear">Earliest departure:</label>
-              <div class="controls">
-                Year <input type="number" id="earliestDepartureYear" style="width: 63px" value="1" min="1" step="1"></input>
-                day <input type="number" id="earliestDepartureDay" style="width: 63px" value="1" min="1" step="1"></input> (from epoch)
-              </div>
-            </div>
-            <div class="control-group">
-              <label class="control-label" for="earliestArrivalYear">Earliest arrival:</label>
-              <div class="controls">
-                Year <input type="number" id="earliestArrivalYear" style="width: 63px" value="1"></input>
-                day <input type="number" id="earliestArrivalDay" style="width: 63px" value="1"></input> (from epoch)
-              </div>
-            </div>
-            <div class="form-actions">
-              <button type="submit" id="porkchopSubmit" class="btn btn-primary">Create porkchop plot!</button>
-              <button type="reset" id="reset" class="btn">Reset</button>
-          </fieldset>
-        </form>
-        
-        <div id="porkchopProgress" class="progress">
-          <div class="bar" style="width: 0; transition: width 0.1s"></div>
+          </div>
+          <div class="span5">
+            <h4>Instructions</h4>
+          </div>
         </div>
         
-        <canvas width="720" height="720" id="porkchopCanvas"></canvas>
-
+        <div class="row">
+          <div class="span7">
+            <h4 align="center">Delta-v transfer plot</h4>
+            <canvas width="540" height="360" id="porkchopCanvas" style="cursor: crosshair"></canvas>
+          </div>
+          <div class="span5">
+            <h4>Selected transfer details</h4>
+            <table class="table table-bordered table-hover">
+              <tr>
+                <th width="150">Departure</th>
+                <td id="departureTime"></td>
+              </tr>
+              <tr>
+                <th>Arrival</th>
+                <td id="arrivalTime"></td>
+              </tr>
+              <tr>
+                <th>Time of flight</th>
+                <td id="timeOfFlight"></td>
+              </tr>
+              <tr>
+                <th>Transfer periapsis</th>
+                <td id="transferPeriapsis"></td>
+              </tr>
+              <tr>
+                <th>Transfer apoapsis</th>
+                <td id="transferApoapsis"></td>
+              </tr>
+              <tr>
+                <th>Transfer angle</th>
+                <td id="transferAngle"></td>
+              </tr>
+              <tr>
+                <th>Ejection angle</th>
+                <td id="ejectionAngle"></td>
+              </tr>
+              <tr>
+                <th>Ejection inclination</th>
+                <td id="ejectionInclination"></td>
+              </tr>
+              <tr>
+                <th>Insertion inclination</th>
+                <td id="insertionInclination"></td>
+              </tr>
+              <tr>
+                <th>Ejection delta-v</th>
+                <td id="ejectionDeltaV"></td>
+              </tr>
+              <tr>
+                <th>Insertion delta-v</th>
+                <td id="insertionDeltaV"></td>
+              </tr>
+              <tr>
+                <th>Total delta-v</th>
+                <td id="totalDeltaV"></td>
+              </tr>
+            </table>
+          </div>
+        </div>
       </section>
       <footer>
         <p>This project is maintained by <a href="https://github.com/alexmoon">alexmoon</a></p>

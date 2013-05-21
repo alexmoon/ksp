@@ -16,19 +16,9 @@ clamp = (n, min, max) -> Math.max(min, Math.min(n, max))
 (exports ? this).Orbit = class Orbit
   constructor: (@referenceBody, @semiMajorAxis, @eccentricity, inclination,
     longitudeOfAscendingNode, argumentOfPeriapsis, @meanAnomalyAtEpoch) ->
-    if arguments.length == 1
-      hash = @referenceBody
-      @referenceBody = hash.referenceBody
-      @semiMajorAxis = hash.semiMajorAxis
-      @eccentricity = hash.eccentricity
-      @inclination = hash.inclination
-      @longitudeOfAscendingNode = hash.longitudeOfAscendingNode
-      @argumentOfPeriapsis = hash.argumentOfPeriapsis
-      @meanAnomalyAtEpoch = hash.meanAnomalyAtEpoch
-    else
-      @inclination = inclination * Math.PI / 180
-      @longitudeOfAscendingNode = longitudeOfAscendingNode * Math.PI / 180
-      @argumentOfPeriapsis = argumentOfPeriapsis * Math.PI / 180
+    @inclination = inclination * Math.PI / 180 if inclination?
+    @longitudeOfAscendingNode = longitudeOfAscendingNode * Math.PI / 180 if longitudeOfAscendingNode?
+    @argumentOfPeriapsis = argumentOfPeriapsis * Math.PI / 180 if argumentOfPeriapsis?
   
   apoapsis: ->
     @semiMajorAxis * (1 + @eccentricity)
@@ -152,6 +142,14 @@ clamp = (n, min, max) -> Math.max(min, Math.min(n, max))
     Math.min(shortDeltaV, longDeltaV)
 
 
+Orbit.fromJSON = (json) ->
+  result = new Orbit(json.referenceBody, json.semiMajorAxis, json.eccentricity)
+  result.inclination = json.inclination
+  result.longitudeOfAscendingNode = json.longitudeOfAscendingNode
+  result.argumentOfPeriapsis = json.argumentOfPeriapsis
+  result.meanAnomalyAtEpoch = json.meanAnomalyAtEpoch
+  result
+  
 Orbit.fromApoapsisAndPeriapsis = (referenceBody, apoapsis, periapsis, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch) ->
   [apoapsis, periapsis] = [periapsis, apoapsis] if apoapsis < periapsis
   semiMajorAxis = (apoapsis + periapsis) / 2
@@ -189,6 +187,47 @@ Orbit.fromAltitudeAndVelocity = (referenceBody, altitude, speed, flightPathAngle
       false # TODO: calculate longitude of ascending node
   
   orbit
+
+crossProduct = (a, b) ->
+  r = new Float64Array(3)
+  r[0] = a[1] * b[2] - a[2] * b[1]
+  r[1] = a[2] * b[0] - a[0] * b[2]
+  r[2] = a[0] * b[1] - a[1] * b[0]
+  r
+  
+Orbit.fromPositionAndVelocity = (referenceBody, position, velocity, t) ->
+  # From: http://www.braeunig.us/space/interpl.htm#elements
+  mu = referenceBody.gravitationalParameter
+  r = numeric.norm2(position)
+  v = numeric.norm2(velocity)
+  
+  specificAngularMomentum = crossProduct(position, velocity) # Eq. 5.21
+  nodeVector = crossProduct([0, 0, 1], specificAngularMomentum) # Eq. 5.22
+  n = numeric.norm2(nodeVector)
+  eccentricityVector = numeric.mulSV(1 / mu, numeric.subVV(numeric.mulSV(v*v - mu / r, position), numeric.mulSV(numeric.dot(position, velocity), velocity))) # Eq. 5.23
+  
+  
+  semiMajorAxis = 1 / (2 / r - v * v / mu) # Eq. 5.24
+  eccentricity = numeric.norm2(eccentricityVector) # Eq. 5.25
+  orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity)
+  
+  orbit.inclination = Math.acos(specificAngularMomentum[2] / numeric.norm2(specificAngularMomentum)) # Eq. 5.26
+  if eccentricity == 0
+    orbit.argumentOfPeriapsis = 0
+    orbit.longitudeOfAscendingNode = 0
+  else
+    orbit.longitudeOfAscendingNode = Math.acos(nodeVector[0] / n) # Eq. 5.27
+    orbit.longitudeOfAscendingNode = 2 * Math.PI - orbit.longitudeOfAscendingNode if nodeVector[1] < 0
+    orbit.argumentOfPeriapsis = Math.acos(numeric.dot(nodeVector, eccentricityVector) / (n * eccentricity)) # Eq. 5.28
+    orbit.argumentOfPeriapsis = 2 * Math.PI - orbit.argumentOfPeriapsis if eccentricityVector[2] < 0
+  
+  trueAnomaly = Math.acos(numeric.dot(eccentricityVector, position) / (eccentricity * r)) # Eq. 5.29
+  trueAnomaly = 2 * Math.PI - trueAnomaly if eccentricityVector[2] < 0
+  meanAnomaly = orbit.meanAnomalyAtTrueAnomaly(trueAnomaly)
+  orbit.meanAnomalyAtEpoch = meanAnomaly - orbit.meanMotion() * (t % orbit.period())
+  
+  orbit
+  
 
 gaussTimeOfFlight = (mu, r1, r2, deltaNu, k, l, m, p) ->
   # From: http://www.braeunig.us/space/interpl.htm#gauss
@@ -243,7 +282,7 @@ Orbit.transferVelocities = (referenceBody, position1, position2, dt, longWay) ->
     p = (p0 + p1) / 2
     break if p == p0 or p == p1 # We have reached floating point resolution
     t = gaussTimeOfFlight(mu, r1, r2, deltaNu, k, l, m, p)
-    break if Math.abs(1 - t / dt) < 1e-6
+    break if Math.abs(1 - t / dt) < 1e-6 # Close enough
     if t < dt then p1 = p else p0 = p
   
   # The next four calculations are redundant with work done in gaussTimeOfFlight()

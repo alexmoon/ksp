@@ -8,14 +8,14 @@
 
   importScripts('orbit.js');
 
-  WIDTH = 720;
+  WIDTH = 300;
 
-  HEIGHT = 720;
+  HEIGHT = 300;
 
   this.onmessage = function(event) {
     var arrivalTime, deltaV, deltaVs, departureOrbit, departurePositions, departureTime, departureVelocities, destinationOrbit, dt, earliestArrival, earliestDeparture, i, lastProgress, longDeltaV, longWayTransferVelocities, maxDeltaV, minDeltaV, now, nu, p1, p2, referenceBody, shortDeltaV, shortWayTransferVelocities, v1, v2, x, xResolution, y, yResolution, _i, _j, _k;
-    departureOrbit = new Orbit(event.data.departureOrbit);
-    destinationOrbit = new Orbit(event.data.destinationOrbit);
+    departureOrbit = Orbit.fromJSON(event.data.departureOrbit);
+    destinationOrbit = Orbit.fromJSON(event.data.destinationOrbit);
     earliestDeparture = event.data.earliestDeparture;
     earliestArrival = event.data.earliestArrival;
     xResolution = event.data.xScale / WIDTH;
@@ -42,7 +42,7 @@
       for (x = _k = 0; 0 <= WIDTH ? _k < WIDTH : _k > WIDTH; x = 0 <= WIDTH ? ++_k : --_k) {
         departureTime = earliestDeparture + x * xResolution;
         if (arrivalTime <= departureTime) {
-          deltaVs[i++] = Infinity;
+          deltaVs[i++] = NaN;
           continue;
         }
         p1 = departurePositions[x];

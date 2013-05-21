@@ -2,12 +2,12 @@ importScripts('numeric-1.2.6.min.js')
 importScripts('quaternion.js')
 importScripts('orbit.js')
 
-WIDTH = 720
-HEIGHT = 720
+WIDTH = 300
+HEIGHT = 300
 
 @onmessage = (event) ->
-  departureOrbit = new Orbit(event.data.departureOrbit)
-  destinationOrbit = new Orbit(event.data.destinationOrbit)
+  departureOrbit = Orbit.fromJSON(event.data.departureOrbit)
+  destinationOrbit = Orbit.fromJSON(event.data.destinationOrbit)
   earliestDeparture = event.data.earliestDeparture
   earliestArrival = event.data.earliestArrival
   xResolution = event.data.xScale / WIDTH
@@ -37,7 +37,7 @@ HEIGHT = 720
     for x in [0...WIDTH]
       departureTime = earliestDeparture + x * xResolution
       if arrivalTime <= departureTime
-        deltaVs[i++] = Infinity
+        deltaVs[i++] = NaN
         continue
       p1 = departurePositions[x]
       v1 = departureVelocities[x]
@@ -62,4 +62,10 @@ HEIGHT = 720
       postMessage(progress: (y + 1) / HEIGHT)
       lastProgress = now
   
-  postMessage({ deltaVs: deltaVs.buffer, minDeltaV: minDeltaV, maxDeltaV: maxDeltaV }, [deltaVs.buffer])
+  try
+    postMessage({ deltaVs: deltaVs.buffer, minDeltaV: minDeltaV, maxDeltaV: maxDeltaV }, [deltaVs.buffer])
+  catch error
+    if error instanceof TypeError
+      postMessage({ deltaVs: deltaVs.buffer, minDeltaV: minDeltaV, maxDeltaV: maxDeltaV })
+    else
+      throw error
