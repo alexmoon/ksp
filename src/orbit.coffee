@@ -52,7 +52,22 @@ clamp = (n, min, max) -> Math.max(min, Math.min(n, max))
     quaternion.concat(
       quaternion.fromAngleAxis(@longitudeOfAscendingNode + @argumentOfPeriapsis, [0, 0, 1]),
       quaternion.fromAngleAxis(@inclination, axisOfInclination))
-      
+  
+  normalVector: ->
+    quaternion.rotate(@rotationToReferenceFrame(), [0, 0, 1])
+  
+  phaseAngle: (orbit, t) ->
+    n = @normalVector()
+    p1 = @positionAtTrueAnomaly(@trueAnomalyAt(t))
+    p2 = orbit.positionAtTrueAnomaly(orbit.trueAnomalyAt(t))
+    p2 = numeric.subVV(p2, numeric.mulVS(n, numeric.dot(p2, n))) # Project p2 onto our orbital plane
+    r1 = numeric.norm2(p1)
+    r2 = numeric.norm2(p2)
+    phaseAngle = Math.acos(numeric.dot(p1, p2) / (r1 * r2))
+    phaseAngle = 2 * Math.PI - phaseAngle if numeric.dot(crossProduct(p1, p2), n) < 0
+    phaseAngle = phaseAngle - 2 * Math.PI if orbit.semiMajorAxis < @semiMajorAxis
+    phaseAngle
+    
   # Orbital state at time t
   
   meanAnomalyAt: (t) ->

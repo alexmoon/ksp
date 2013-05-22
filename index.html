@@ -76,7 +76,7 @@
                 <div class="control-group">
                   <label class="control-label" for="initialOrbit">Initial orbit:</label>
                   <div class="controls">
-                    <input type="text" id="initialOrbit"></input> km (above surface)
+                    <input type="text" id="initialOrbit" value="100"></input> km (above surface)
                   </div>
                 </div>
                 <div class="control-group">
@@ -88,7 +88,7 @@
                 <div class="control-group">
                   <label class="control-label" for="finalOrbit">Final orbit:</label>
                   <div class="controls">
-                    <input type="text" id="finalOrbit"></input> km (above surface)
+                    <input type="text" id="finalOrbit" value="100"></input> km (above surface)
                   </div>
                 </div>
                 <div class="control-group">
@@ -123,7 +123,7 @@
             <h4>Selected transfer details</h4>
             <table class="table table-bordered table-hover">
               <tr>
-                <th width="150">Departure</th>
+                <th width="140">Departure</th>
                 <td id="departureTime"></td>
               </tr>
               <tr>
@@ -133,6 +133,10 @@
               <tr>
                 <th>Time of flight</th>
                 <td id="timeOfFlight"></td>
+              </tr>
+              <tr>
+                <th>Phase angle</th>
+                <td id="phaseAngle"></td>
               </tr>
               <tr>
                 <th>Transfer periapsis</th>

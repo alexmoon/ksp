@@ -3,8 +3,112 @@ PLOT_HEIGHT = 300
 PLOT_X_OFFSET = 70
 TIC_LENGTH = 5
 
+originOrbit = null
+destinationOrbit = null
+initialOrbitalVelocity = null
+finalOrbitalVelocity = null
+earliestDeparture = null
+earliestArrival = null
+xScale = null
+yScale = null
+deltaVs = null
+
+canvasContext = null
+plotImageData = null
+
+palette = []
+palette.push([64, i, 255]) for i in [64...69]
+palette.push([128, i, 255]) for i in [133..255]
+palette.push([128, 255, i]) for i in [255..128]
+palette.push([i, 255, 128]) for i in [128..255]
+palette.push([255, i, 128]) for i in [255..128]
+
 clamp = (n, min, max) -> Math.max(min, Math.min(n, max))
 
+crossProduct = (a, b) ->
+  r = new Float64Array(3)
+  r[0] = a[1] * b[2] - a[2] * b[1]
+  r[1] = a[2] * b[0] - a[0] * b[2]
+  r[2] = a[0] * b[1] - a[1] * b[0]
+  r
+
+injectionDeltaV = (initialVelocity, hyperbolicExcessVelocity) ->
+  vinf = hyperbolicExcessVelocity
+  v0 = Math.sqrt(vinf * vinf + 2 * initialVelocity * initialVelocity) # Eq. 5.35
+  v0 - initialVelocity # Eq. 5.36
+
+transferParameters = (t0, t1) ->
+  result = {}
+  
+  referenceBody = originOrbit.referenceBody
+  dt = t1 - t0
+  
+  # Find the origin body's position and velocity at t0
+  nu = originOrbit.trueAnomalyAt(t0)
+  originPosition = originOrbit.positionAtTrueAnomaly(nu)
+  originVelocity = originOrbit.velocityAtTrueAnomaly(nu)
+
+  # Find the destination body's position and velocity at t0
+  nu = destinationOrbit.trueAnomalyAt(t1)
+  destinationPosition = destinationOrbit.positionAtTrueAnomaly(nu)
+  destinationVelocity = destinationOrbit.velocityAtTrueAnomaly(nu)
+
+  # Calculate the velocities at t0 and t1 for the two possible transfer orbits
+  shortWayTransferVelocities = Orbit.transferVelocities(referenceBody, originPosition, destinationPosition, dt, false)
+  longWayTransferVelocities = Orbit.transferVelocities(referenceBody, originPosition, destinationPosition, dt, true)
+
+  # Determine the basic ejection delta-v for each direction
+  shortEjectionExcessVelocity = numeric.norm2(numeric.subVV(shortWayTransferVelocities[0], originVelocity))
+  shortEjectionDeltaV = injectionDeltaV(initialOrbitalVelocity, shortEjectionExcessVelocity)
+  longEjectionExcessVelocity = numeric.norm2(numeric.subVV(longWayTransferVelocities[0], originVelocity))
+  longEjectionDeltaV = injectionDeltaV(initialOrbitalVelocity, longEjectionExcessVelocity)
+
+  # If we want to enter orbit around the destination, calculate the basic insertion delta-v
+  if finalOrbitalVelocity == 0
+    shortInsertionExcessVelocity = longInsertionExcessVelocity = 0
+    shortInsertionDeltaV = longInsertionDeltaV = 0
+  else
+    shortInsertionExcessVelocity = numeric.norm2(numeric.subVV(destinationVelocity, shortWayTransferVelocities[1]))
+    shortInsertionDeltaV = injectionDeltaV(finalOrbitalVelocity, shortInsertionExcessVelocity)
+    longInsertionExcessVelocity = numeric.norm2(numeric.subVV(destinationVelocity, longWayTransferVelocities[1]))
+    longInsertionDeltaV = injectionDeltaV(finalOrbitalVelocity, longInsertionExcessVelocity)
+
+  cosTransferAngle = numeric.dot(originPosition, destinationPosition) /
+    (numeric.norm2(originPosition) * numeric.norm2(destinationPosition))
+  
+  # Determine whether the short way or long way is more efficient
+  if shortEjectionDeltaV + shortInsertionDeltaV <= longEjectionDeltaV + longInsertionDeltaV
+    result.transferAngle = Math.acos(cosTransferAngle)
+    result.ejectionDeltaV = shortEjectionDeltaV
+    result.insertionDeltaV = shortInsertionDeltaV
+    
+    initialTransferVelocity = shortWayTransferVelocities[0]
+    ejectionExcessVelocity = shortEjectionExcessVelocity
+    insertionExcessVelocity = shortInsertionExcessVelocity
+  else
+    result.transferAngle = 2 * Math.PI - Math.acos(cosTransferAngle)
+    result.ejectionDeltaV = longEjectionDeltaV
+    result.insertionDeltaV = longInsertionDeltaV
+    
+    initialTransferVelocity = longWayTransferVelocities[0]
+    ejectionExcessVelocity = longEjectionExcessVelocity
+    insertionExcessVelocity = longInsertionExcessVelocity
+
+  result.transferOrbit = Orbit.fromPositionAndVelocity(referenceBody, originPosition, initialTransferVelocity, t0)
+  result.phaseAngle = originOrbit.phaseAngle(destinationOrbit, t0)
+  result.totalDeltaV = result.ejectionDeltaV + result.insertionDeltaV
+
+  # a = -mu / vinf^2
+  # e = c / a
+  # eta = Math.acos(-1 / e)
+  # ejectionVelocityVector = ejectionVelocity rotated by -eta around escape trajectory normal
+  # angleToPrograde = angle between ejectionVelocityVector and originVelocity in ecliptic plane
+  # inclination = inclination of hyperbolic excess velocity relative to ecliptic plane
+  # inclination = Math.asin(normal dot ejectionVelocity / ejectionExcessVelocity)
+  
+  result
+  
+  
 numberWithCommas = (n) ->
   n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 
@@ -43,23 +147,9 @@ distanceString = (d) ->
     numberWithCommas((d / 1e3).toFixed()) + " km"
   else
     numberWithCommas(d.toFixed()) + " m"
-    
-canvasContext = null
-plotImageData = null
 
-departureOrbit = null
-destinationOrbit = null
-earliestDeparture = null
-earliestArrival = null
-xScale = null
-yScale = null
-deltaVs = null
-
-palette = []
-palette.push([128, i, 255]) for i in [128..255]
-palette.push([128, 255, i]) for i in [255..128]
-palette.push([i, 255, 128]) for i in [128..255]
-palette.push([255, i, 128]) for i in [255..128]
+angleString = (angle, precision = 0) ->
+  (angle * 180 / Math.PI).toFixed(precision) + String.fromCharCode(0x00b0)
 
 worker = new Worker("javascripts/porkchopworker.js")
 
@@ -200,7 +290,7 @@ $(document).ready ->
           tip = " " + String.fromCharCode(0x2206) + "v = " + deltaV.toFixed() + " m/s "
           ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif'
           ctx.fillStyle = 'black'
-          ctx.textAlign = if x < PLOT_WIDTH - 100 then 'left' else 'right'
+          ctx.textAlign = if x < PLOT_WIDTH / 2 then 'left' else 'right'
           ctx.textBaseline = if y > 15 then 'bottom' else 'top'
           ctx.fillText(tip, event.offsetX, event.offsetY)
       
@@ -214,59 +304,25 @@ $(document).ready ->
       x = event.offsetX - PLOT_X_OFFSET
       y = event.offsetY
       if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT
-        referenceBody = departureOrbit.referenceBody
-        
         t0 = earliestDeparture + x * xScale / PLOT_WIDTH
         t1 = earliestArrival + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
-        dt = t1 - t0
-        
-        nu = departureOrbit.trueAnomalyAt(t0)
-        departurePosition = departureOrbit.positionAtTrueAnomaly(nu)
-        departureVelocity = departureOrbit.velocityAtTrueAnomaly(nu)
-        
-        nu = destinationOrbit.trueAnomalyAt(t1)
-        destinationPosition = destinationOrbit.positionAtTrueAnomaly(nu)
-        destinationVelocity = destinationOrbit.velocityAtTrueAnomaly(nu)
-        
-        cosTransferAngle = numeric.dot(departurePosition, destinationPosition) /
-          (numeric.norm2(departurePosition) * numeric.norm2(destinationPosition))
-        
-        shortWayTransferVelocities = Orbit.transferVelocities(referenceBody, departurePosition, destinationPosition, dt, false)
-        longWayTransferVelocities = Orbit.transferVelocities(referenceBody, departurePosition, destinationPosition, dt, true)
-        
-        shortEjectionDeltaV = numeric.norm2(numeric.subVV(shortWayTransferVelocities[0], departureVelocity))
-        shortInsertionDeltaV = numeric.norm2(numeric.subVV(destinationVelocity, shortWayTransferVelocities[1]))
-        longEjectionDeltaV = numeric.norm2(numeric.subVV(longWayTransferVelocities[0], departureVelocity))
-        longInsertionDeltaV = numeric.norm2(numeric.subVV(destinationVelocity, longWayTransferVelocities[1]))
-        
-        if shortEjectionDeltaV + shortInsertionDeltaV <= longEjectionDeltaV + longInsertionDeltaV
-          transferAngle = Math.acos(cosTransferAngle)
-          ejectionVelocity = shortWayTransferVelocities[0]
-          insertionVelocity = shortWayTransferVelocities[1]
-          ejectionDeltaV = shortEjectionDeltaV
-          insertionDeltaV = shortInsertionDeltaV
-          totalDeltaV = ejectionDeltaV + insertionDeltaV
-        else
-          transferAngle = 2 * Math.PI - Math.acos(cosTransferAngle)
-          ejectionVelocity = longWayTransferVelocities[0]
-          insertionVelocity = longWayTransferVelocities[1]
-          ejectionDeltaV = longEjectionDeltaV
-          insertionDeltaV = longInsertionDeltaV
-        
-        transferOrbit = Orbit.fromPositionAndVelocity(referenceBody, departurePosition, ejectionVelocity, t0)
-        totalDeltaV = ejectionDeltaV + insertionDeltaV
+        params = transferParameters(t0, t1)
         
         $('#departureTime').text(kerbalDateString(t0))
         $('#arrivalTime').text(kerbalDateString(t1))
         $('#timeOfFlight').text(durationString(t1 - t0))
-        $('#transferPeriapsis').text(distanceString(transferOrbit.periapsis()))
-        $('#transferApoapsis').text(distanceString(transferOrbit.apoapsis()))
-        $('#transferAngle').text((transferAngle * 180 / Math.PI).toFixed() + String.fromCharCode(0x00b0))
-        $('#ejectionAngle').text(String.fromCharCode(0x00b0))
-        $('#ejectionInclination').text(String.fromCharCode(0x00b0))
-        $('#ejectionDeltaV').text(numberWithCommas(ejectionDeltaV.toFixed()) + " m/s")
-        $('#insertionDeltaV').text(numberWithCommas(insertionDeltaV.toFixed()) + " m/s")
-        $('#totalDeltaV').text(numberWithCommas(totalDeltaV.toFixed()) + " m/s")
+        $('#phaseAngle').text(angleString(params.phaseAngle, 2))
+        $('#transferPeriapsis').text(distanceString(params.transferOrbit.periapsis()))
+        $('#transferApoapsis').text(distanceString(params.transferOrbit.apoapsis()))
+        $('#transferAngle').text(angleString(params.transferAngle))
+        $('#ejectionAngle').text(angleString(0))
+        $('#ejectionInclination').text(angleString(0))
+        $('#ejectionDeltaV').text(numberWithCommas(params.ejectionDeltaV.toFixed()) + " m/s")
+        if finalOrbitalVelocity == 0
+          $('#insertionDeltaV').text("N/A")
+        else
+          $('#insertionDeltaV').text(numberWithCommas(params.insertionDeltaV.toFixed()) + " m/s")
+        $('#totalDeltaV').text(numberWithCommas(params.totalDeltaV.toFixed()) + " m/s")
         
   $('#originSelect').change (event) ->
     origin = CelestialBody[$(this).val()]
@@ -287,18 +343,33 @@ $(document).ready ->
     event.preventDefault()
     $('#porkchopSubmit').prop('disabled', true)
     
-    departureOrbit = CelestialBody[$('#originSelect').val()].orbit
-    destinationOrbit = CelestialBody[$('#destinationSelect').val()].orbit
+    originBodyName = $('#originSelect').val()
+    destinationBodyName = $('#destinationSelect').val()
+    initialOrbit = $('#initialOrbit').val().trim()
+    finalOrbit = $('#finalOrbit').val().trim()
+    
+    originBody = CelestialBody[originBodyName]
+    destinationBody = CelestialBody[destinationBodyName]
+    
+    initialOrbitalVelocity = Math.sqrt(originBody.gravitationalParameter / (initialOrbit * 1e3 + originBody.radius))
+        
+    if finalOrbit
+      finalOrbitalVelocity = Math.sqrt(destinationBody.gravitationalParameter /
+        (finalOrbit * 1e3 + destinationBody.radius))
+    else
+      finalOrbitalVelocity = 0
     
     earliestDeparture = ($('#earliestDepartureYear').val() - 1) * 365 + ($('#earliestDepartureDay').val() - 1)
     earliestDeparture *= 24 * 3600
     earliestArrival = ($('#earliestArrivalYear').val() - 1) * 365 + ($('#earliestArrivalDay').val() - 1)
     earliestArrival *= 24 * 3600
     
-    hohmannTransfer = Orbit.fromApoapsisAndPeriapsis(departureOrbit.referenceBody, destinationOrbit.semiMajorAxis, departureOrbit.semiMajorAxis, 0, 0, 0, 0)
+    originOrbit = originBody.orbit
+    destinationOrbit = destinationBody.orbit
+    hohmannTransfer = Orbit.fromApoapsisAndPeriapsis(originOrbit.referenceBody, destinationOrbit.semiMajorAxis, originOrbit.semiMajorAxis, 0, 0, 0, 0)
     earliestArrival = earliestDeparture + hohmannTransfer.period() / 4
-    xScale = 2 * Math.min(departureOrbit.period(), destinationOrbit.period())
-    if destinationOrbit.semiMajorAxis < departureOrbit.semiMajorAxis
+    xScale = 2 * Math.min(originOrbit.period(), destinationOrbit.period())
+    if destinationOrbit.semiMajorAxis < originOrbit.semiMajorAxis
       yScale = 2 * destinationOrbit.period()
     else
       yScale = hohmannTransfer.period()
@@ -320,8 +391,10 @@ $(document).ready ->
     for i in [0..1.0] by 0.25
       ctx.fillText(((earliestDeparture + i * xScale) / 3600 / 24) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3)
       
+    console.log(initialOrbitalVelocity, finalOrbitalVelocity)
     deltaVs = null
     worker.postMessage(
-      departureOrbit: departureOrbit, destinationOrbit: destinationOrbit,
+      originOrbit: originOrbit, destinationOrbit: destinationOrbit,
+      initialOrbitalVelocity: initialOrbitalVelocity, finalOrbitalVelocity: finalOrbitalVelocity,
       earliestDeparture: earliestDeparture, xScale: xScale,
       earliestArrival: earliestArrival, yScale: yScale)

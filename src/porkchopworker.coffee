@@ -5,23 +5,30 @@ importScripts('orbit.js')
 WIDTH = 300
 HEIGHT = 300
 
+injectionDeltaV = (initialVelocity, hyperbolicExcessVelocity) ->
+  vinf = hyperbolicExcessVelocity
+  v0 = Math.sqrt(vinf * vinf + 2 * initialVelocity * initialVelocity) # Eq. 5.35
+  v0 - initialVelocity # Eq. 5.36
+  
 @onmessage = (event) ->
-  departureOrbit = Orbit.fromJSON(event.data.departureOrbit)
+  originOrbit = Orbit.fromJSON(event.data.originOrbit)
+  initialOrbitalVelocity = event.data.initialOrbitalVelocity
   destinationOrbit = Orbit.fromJSON(event.data.destinationOrbit)
+  finalOrbitalVelocity = event.data.finalOrbitalVelocity
   earliestDeparture = event.data.earliestDeparture
   earliestArrival = event.data.earliestArrival
   xResolution = event.data.xScale / WIDTH
   yResolution = event.data.yScale / HEIGHT
-  referenceBody = departureOrbit.referenceBody
+  referenceBody = originOrbit.referenceBody
   
   # Pre-calculate destination positions and velocities
-  departurePositions = []
-  departureVelocities = []
+  originPositions = []
+  originVelocities = []
   for x in [0...WIDTH]
     departureTime = earliestDeparture + x * xResolution
-    nu = departureOrbit.trueAnomalyAt(departureTime)
-    departurePositions[x] = departureOrbit.positionAtTrueAnomaly(nu)
-    departureVelocities[x] = departureOrbit.velocityAtTrueAnomaly(nu)
+    nu = originOrbit.trueAnomalyAt(departureTime)
+    originPositions[x] = originOrbit.positionAtTrueAnomaly(nu)
+    originVelocities[x] = originOrbit.velocityAtTrueAnomaly(nu)
   
   deltaVs = new Float64Array(WIDTH * HEIGHT)
   i = 0
@@ -39,19 +46,33 @@ HEIGHT = 300
       if arrivalTime <= departureTime
         deltaVs[i++] = NaN
         continue
-      p1 = departurePositions[x]
-      v1 = departureVelocities[x]
+      p1 = originPositions[x]
+      v1 = originVelocities[x]
       dt = arrivalTime - departureTime
   
       # TODO: Use heuristic so we don't have to calculate both transfer directions
       # (e.g. if angle is < 170 or > 190 then only go clockwise)
       shortWayTransferVelocities = Orbit.transferVelocities(referenceBody, p1, p2, dt, false)
       longWayTransferVelocities = Orbit.transferVelocities(referenceBody, p1, p2, dt, true)
-  
-      shortDeltaV = numeric.norm2(numeric.subVV(v1, shortWayTransferVelocities[0])) +
-        numeric.norm2(numeric.subVV(v2, shortWayTransferVelocities[1]))
-      longDeltaV = numeric.norm2(numeric.subVV(v1, longWayTransferVelocities[0])) +
-        numeric.norm2(numeric.subVV(v2, longWayTransferVelocities[1]))
+      
+      shortEjectionDeltaV = numeric.norm2(numeric.subVV(shortWayTransferVelocities[0], v1))
+      longEjectionDeltaV = numeric.norm2(numeric.subVV(longWayTransferVelocities[0], v1))
+      if initialOrbitalVelocity?
+        shortEjectionDeltaV = injectionDeltaV(initialOrbitalVelocity, shortEjectionDeltaV)
+        longEjectionDeltaV = injectionDeltaV(initialOrbitalVelocity, longEjectionDeltaV)
+      
+      if finalOrbitalVelocity == 0
+        shortInsertionDeltaV = 0
+        longInsertionDeltaV = 0
+      else
+        shortInsertionDeltaV = numeric.norm2(numeric.subVV(shortWayTransferVelocities[1], v2))
+        longInsertionDeltaV = numeric.norm2(numeric.subVV(longWayTransferVelocities[1], v2))
+        if finalOrbitalVelocity?
+          shortInsertionDeltaV = injectionDeltaV(finalOrbitalVelocity, shortInsertionDeltaV)
+          longInsertionDeltaV = injectionDeltaV(finalOrbitalVelocity, longInsertionDeltaV)
+      
+      shortDeltaV = shortEjectionDeltaV + shortInsertionDeltaV
+      longDeltaV = longEjectionDeltaV + longInsertionDeltaV
       deltaVs[i++] = deltaV = Math.min(shortDeltaV, longDeltaV)
 
       minDeltaV = Math.min(deltaV, minDeltaV)

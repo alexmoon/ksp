@@ -84,6 +84,28 @@
       return quaternion.concat(quaternion.fromAngleAxis(this.longitudeOfAscendingNode + this.argumentOfPeriapsis, [0, 0, 1]), quaternion.fromAngleAxis(this.inclination, axisOfInclination));
     };
 
+    Orbit.prototype.normalVector = function() {
+      return quaternion.rotate(this.rotationToReferenceFrame(), [0, 0, 1]);
+    };
+
+    Orbit.prototype.phaseAngle = function(orbit, t) {
+      var n, p1, p2, phaseAngle, r1, r2;
+      n = this.normalVector();
+      p1 = this.positionAtTrueAnomaly(this.trueAnomalyAt(t));
+      p2 = orbit.positionAtTrueAnomaly(orbit.trueAnomalyAt(t));
+      p2 = numeric.subVV(p2, numeric.mulVS(n, numeric.dot(p2, n)));
+      r1 = numeric.norm2(p1);
+      r2 = numeric.norm2(p2);
+      phaseAngle = Math.acos(numeric.dot(p1, p2) / (r1 * r2));
+      if (numeric.dot(crossProduct(p1, p2), n) < 0) {
+        phaseAngle = 2 * Math.PI - phaseAngle;
+      }
+      if (orbit.semiMajorAxis < this.semiMajorAxis) {
+        phaseAngle = phaseAngle - 2 * Math.PI;
+      }
+      return phaseAngle;
+    };
+
     Orbit.prototype.meanAnomalyAt = function(t) {
       return this.meanAnomalyAtEpoch + this.meanMotion() * (t % this.period());
     };
