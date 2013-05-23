@@ -4,6 +4,9 @@ G = 6.674e-11
   constructor: (@mass, @radius, @siderealRotation, @orbit) ->
     @gravitationalParameter = G * @mass
     @sphereOfInfluence = @orbit.semiMajorAxis * Math.pow(@mass / @orbit.referenceBody.mass, 0.4) if @orbit?
+  
+  circularOrbitVelocity: (altitude) ->
+    Math.sqrt(@gravitationalParameter / (altitude + @radius))
 
 CelestialBody.Kerbol = Kerbol = new CelestialBody(1.756567e+28, 2.616e+08, 0, null)
 CelestialBody.Moho = Moho = new CelestialBody(3.6747079e21, 250000, 1210000, new Orbit(Kerbol, 5263138304, 0.2, 7.0, 70.0, 15.0, 3.14))

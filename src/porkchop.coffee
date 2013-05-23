@@ -25,90 +25,6 @@ palette.push([255, i, 128]) for i in [255..128]
 
 clamp = (n, min, max) -> Math.max(min, Math.min(n, max))
 
-crossProduct = (a, b) ->
-  r = new Float64Array(3)
-  r[0] = a[1] * b[2] - a[2] * b[1]
-  r[1] = a[2] * b[0] - a[0] * b[2]
-  r[2] = a[0] * b[1] - a[1] * b[0]
-  r
-
-injectionDeltaV = (initialVelocity, hyperbolicExcessVelocity) ->
-  vinf = hyperbolicExcessVelocity
-  v0 = Math.sqrt(vinf * vinf + 2 * initialVelocity * initialVelocity) # Eq. 5.35
-  v0 - initialVelocity # Eq. 5.36
-
-transferParameters = (t0, t1) ->
-  result = {}
-  
-  referenceBody = originOrbit.referenceBody
-  dt = t1 - t0
-  
-  # Find the origin body's position and velocity at t0
-  nu = originOrbit.trueAnomalyAt(t0)
-  originPosition = originOrbit.positionAtTrueAnomaly(nu)
-  originVelocity = originOrbit.velocityAtTrueAnomaly(nu)
-
-  # Find the destination body's position and velocity at t0
-  nu = destinationOrbit.trueAnomalyAt(t1)
-  destinationPosition = destinationOrbit.positionAtTrueAnomaly(nu)
-  destinationVelocity = destinationOrbit.velocityAtTrueAnomaly(nu)
-
-  # Calculate the velocities at t0 and t1 for the two possible transfer orbits
-  shortWayTransferVelocities = Orbit.transferVelocities(referenceBody, originPosition, destinationPosition, dt, false)
-  longWayTransferVelocities = Orbit.transferVelocities(referenceBody, originPosition, destinationPosition, dt, true)
-
-  # Determine the basic ejection delta-v for each direction
-  shortEjectionExcessVelocity = numeric.norm2(numeric.subVV(shortWayTransferVelocities[0], originVelocity))
-  shortEjectionDeltaV = injectionDeltaV(initialOrbitalVelocity, shortEjectionExcessVelocity)
-  longEjectionExcessVelocity = numeric.norm2(numeric.subVV(longWayTransferVelocities[0], originVelocity))
-  longEjectionDeltaV = injectionDeltaV(initialOrbitalVelocity, longEjectionExcessVelocity)
-
-  # If we want to enter orbit around the destination, calculate the basic insertion delta-v
-  if finalOrbitalVelocity == 0
-    shortInsertionExcessVelocity = longInsertionExcessVelocity = 0
-    shortInsertionDeltaV = longInsertionDeltaV = 0
-  else
-    shortInsertionExcessVelocity = numeric.norm2(numeric.subVV(destinationVelocity, shortWayTransferVelocities[1]))
-    shortInsertionDeltaV = injectionDeltaV(finalOrbitalVelocity, shortInsertionExcessVelocity)
-    longInsertionExcessVelocity = numeric.norm2(numeric.subVV(destinationVelocity, longWayTransferVelocities[1]))
-    longInsertionDeltaV = injectionDeltaV(finalOrbitalVelocity, longInsertionExcessVelocity)
-
-  cosTransferAngle = numeric.dot(originPosition, destinationPosition) /
-    (numeric.norm2(originPosition) * numeric.norm2(destinationPosition))
-  
-  # Determine whether the short way or long way is more efficient
-  if shortEjectionDeltaV + shortInsertionDeltaV <= longEjectionDeltaV + longInsertionDeltaV
-    result.transferAngle = Math.acos(cosTransferAngle)
-    result.ejectionDeltaV = shortEjectionDeltaV
-    result.insertionDeltaV = shortInsertionDeltaV
-    
-    initialTransferVelocity = shortWayTransferVelocities[0]
-    ejectionExcessVelocity = shortEjectionExcessVelocity
-    insertionExcessVelocity = shortInsertionExcessVelocity
-  else
-    result.transferAngle = 2 * Math.PI - Math.acos(cosTransferAngle)
-    result.ejectionDeltaV = longEjectionDeltaV
-    result.insertionDeltaV = longInsertionDeltaV
-    
-    initialTransferVelocity = longWayTransferVelocities[0]
-    ejectionExcessVelocity = longEjectionExcessVelocity
-    insertionExcessVelocity = longInsertionExcessVelocity
-
-  result.transferOrbit = Orbit.fromPositionAndVelocity(referenceBody, originPosition, initialTransferVelocity, t0)
-  result.phaseAngle = originOrbit.phaseAngle(destinationOrbit, t0)
-  result.totalDeltaV = result.ejectionDeltaV + result.insertionDeltaV
-
-  # a = -mu / vinf^2
-  # e = c / a
-  # eta = Math.acos(-1 / e)
-  # ejectionVelocityVector = ejectionVelocity rotated by -eta around escape trajectory normal
-  # angleToPrograde = angle between ejectionVelocityVector and originVelocity in ecliptic plane
-  # inclination = inclination of hyperbolic excess velocity relative to ecliptic plane
-  # inclination = Math.asin(normal dot ejectionVelocity / ejectionExcessVelocity)
-  
-  result
-  
-  
 numberWithCommas = (n) ->
   n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 
@@ -306,23 +222,36 @@ $(document).ready ->
       if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT
         t0 = earliestDeparture + x * xScale / PLOT_WIDTH
         t1 = earliestArrival + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
-        params = transferParameters(t0, t1)
+        
+        trueAnomaly = originOrbit.trueAnomalyAt(t0)
+        p0 = originOrbit.positionAtTrueAnomaly(trueAnomaly)
+        v0 = originOrbit.velocityAtTrueAnomaly(trueAnomaly)
+        n0 = originOrbit.normalVector()
+        
+        trueAnomaly = destinationOrbit.trueAnomalyAt(t1)
+        p1 = destinationOrbit.positionAtTrueAnomaly(trueAnomaly)
+        v1 = destinationOrbit.velocityAtTrueAnomaly(trueAnomaly)
+        n1 = destinationOrbit.normalVector()
+        
+        transfer = Orbit.ballisticTransfer(originOrbit.referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, true)
         
         $('#departureTime').text(kerbalDateString(t0))
         $('#arrivalTime').text(kerbalDateString(t1))
         $('#timeOfFlight').text(durationString(t1 - t0))
-        $('#phaseAngle').text(angleString(params.phaseAngle, 2))
-        $('#transferPeriapsis').text(distanceString(params.transferOrbit.periapsis()))
-        $('#transferApoapsis').text(distanceString(params.transferOrbit.apoapsis()))
-        $('#transferAngle').text(angleString(params.transferAngle))
+        $('#phaseAngle').text(angleString(originOrbit.phaseAngle(destinationOrbit, t0), 2))
+        $('#transferPeriapsis').text(distanceString(transfer.orbit.periapsis()))
+        $('#transferApoapsis').text(distanceString(transfer.orbit.apoapsis()))
+        $('#transferAngle').text(angleString(transfer.angle))
         $('#ejectionAngle').text(angleString(0))
-        $('#ejectionInclination').text(angleString(0))
-        $('#ejectionDeltaV').text(numberWithCommas(params.ejectionDeltaV.toFixed()) + " m/s")
+        $('#ejectionInclination').text(angleString(transfer.ejectionInclination, 2))
+        $('#ejectionDeltaV').text(numberWithCommas(transfer.ejectionDeltaV.toFixed()) + " m/s")
         if finalOrbitalVelocity == 0
+          $('#insertionInclination').text("N/A")
           $('#insertionDeltaV').text("N/A")
         else
-          $('#insertionDeltaV').text(numberWithCommas(params.insertionDeltaV.toFixed()) + " m/s")
-        $('#totalDeltaV').text(numberWithCommas(params.totalDeltaV.toFixed()) + " m/s")
+          $('#insertionInclination').text(angleString(transfer.insertionInclination, 2))
+          $('#insertionDeltaV').text(numberWithCommas(transfer.insertionDeltaV.toFixed()) + " m/s")
+        $('#totalDeltaV').text(numberWithCommas(transfer.deltaV.toFixed()) + " m/s")
         
   $('#originSelect').change (event) ->
     origin = CelestialBody[$(this).val()]
@@ -351,13 +280,12 @@ $(document).ready ->
     originBody = CelestialBody[originBodyName]
     destinationBody = CelestialBody[destinationBodyName]
     
-    initialOrbitalVelocity = Math.sqrt(originBody.gravitationalParameter / (initialOrbit * 1e3 + originBody.radius))
+    initialOrbitalVelocity = originBody.circularOrbitVelocity(initialOrbit * 1e3)
         
     if finalOrbit
-      finalOrbitalVelocity = Math.sqrt(destinationBody.gravitationalParameter /
-        (finalOrbit * 1e3 + destinationBody.radius))
+      finalOrbitalVelocity = destinationBody.circularOrbitVelocity(finalOrbit * 1e3)
     else
-      finalOrbitalVelocity = 0
+      finalOrbitalVelocity = null
     
     earliestDeparture = ($('#earliestDepartureYear').val() - 1) * 365 + ($('#earliestDepartureDay').val() - 1)
     earliestDeparture *= 24 * 3600

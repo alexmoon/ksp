@@ -17,6 +17,10 @@
       }
     }
 
+    CelestialBody.prototype.circularOrbitVelocity = function(altitude) {
+      return Math.sqrt(this.gravitationalParameter / (altitude + this.radius));
+    };
+
     return CelestialBody;
 
   })();
