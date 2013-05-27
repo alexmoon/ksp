@@ -3,6 +3,7 @@ PLOT_HEIGHT = 300
 PLOT_X_OFFSET = 70
 TIC_LENGTH = 5
 
+originBody = null
 originOrbit = null
 destinationOrbit = null
 initialOrbitalVelocity = null
@@ -219,7 +220,7 @@ $(document).ready ->
     if deltaVs?
       x = event.offsetX - PLOT_X_OFFSET
       y = event.offsetY
-      if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT
+      if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT and !isNaN(deltaVs[(y * PLOT_WIDTH + x) | 0])
         t0 = earliestDeparture + x * xScale / PLOT_WIDTH
         t1 = earliestArrival + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
         
@@ -233,7 +234,7 @@ $(document).ready ->
         v1 = destinationOrbit.velocityAtTrueAnomaly(trueAnomaly)
         n1 = destinationOrbit.normalVector()
         
-        transfer = Orbit.ballisticTransfer(originOrbit.referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, true)
+        transfer = Orbit.ballisticTransfer(originOrbit.referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody)
         
         $('#departureTime').text(kerbalDateString(t0))
         $('#arrivalTime').text(kerbalDateString(t1))
@@ -241,8 +242,9 @@ $(document).ready ->
         $('#phaseAngle').text(angleString(originOrbit.phaseAngle(destinationOrbit, t0), 2))
         $('#transferPeriapsis').text(distanceString(transfer.orbit.periapsis()))
         $('#transferApoapsis').text(distanceString(transfer.orbit.apoapsis()))
+        $('#transferInclination').text(angleString(transfer.orbit.inclination, 2))
         $('#transferAngle').text(angleString(transfer.angle))
-        $('#ejectionAngle').text(angleString(0))
+        $('#ejectionAngle').text(angleString(transfer.ejectionAngle))
         $('#ejectionInclination').text(angleString(transfer.ejectionInclination, 2))
         $('#ejectionDeltaV').text(numberWithCommas(transfer.ejectionDeltaV.toFixed()) + " m/s")
         if finalOrbitalVelocity == 0
@@ -319,7 +321,6 @@ $(document).ready ->
     for i in [0..1.0] by 0.25
       ctx.fillText(((earliestDeparture + i * xScale) / 3600 / 24) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3)
       
-    console.log(initialOrbitalVelocity, finalOrbitalVelocity)
     deltaVs = null
     worker.postMessage(
       originOrbit: originOrbit, destinationOrbit: destinationOrbit,

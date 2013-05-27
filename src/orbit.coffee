@@ -14,7 +14,7 @@ acosh = (n) ->
   Math.log(n + Math.sqrt(n * n - 1))
 
 crossProduct = (a, b) ->
-  r = new Float64Array(3)
+  r = new Array(3)
   r[0] = a[1] * b[2] - a[2] * b[1]
   r[1] = a[2] * b[0] - a[0] * b[2]
   r[2] = a[0] * b[1] - a[1] * b[0]
@@ -289,7 +289,48 @@ transferVelocities = (mu, position1, position2, dt, longWay) ->
   
   [v1, v2]
 
-Orbit.ballisticTransfer = (referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, detailed) ->
+ejectionAngle = (asymptote, eccentricity, normal, prograde) ->
+  e = eccentricity
+  [ax, ay, az] = numeric.divVS(asymptote, numeric.norm2(asymptote))
+  [nx, ny, nz] = normal
+  
+  
+  # We have three equations of three unknowns (vx, vy, vz):
+  #   dot(v, asymptote) = cos(eta) = -1 / e  [Eq. 4.81]
+  #   norm(v) = 1  [Unit vector]
+  #   dot(v, normal) = 0  [Perpendicular to normal]
+  #
+  # Solution is defined iff:
+  #   nz != 0
+  #   ay != 0 or (az != 0 and ny != 0) [because we are solving for vx first]
+  #   asymptote is not parallel to normal
+  
+  # Intermediate terms
+  f = ay - az * ny / nz
+  g = (az * nx - ax * nz) / (ay * nz - az * ny)
+  h = (nx + g * ny) / nz
+  
+  # Quadratic coefficients
+  a = (1 + g * g + h * h)
+  b = -2 * (g * (ny * ny + nz * nz) + nx * ny) / (e * f * nz * nz)
+  c = (nz * nz + ny * ny) / (e * e * f * f * nz * nz) - 1
+  
+  # Solution
+  vx = (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a)
+  vy = g * vx - 1 / (e * f)
+  vz = -(vx * nx + vy * ny) / nz
+  
+  if numeric.dot(crossProduct([vx, vy, vz], [ax, ay, az]), normal) < 0 # Wrong orbital direction
+    vx = (-b - Math.sqrt(b * b - 4 * a * c)) / (2 * a)
+    vy = g * vx - 1 / (e * f)
+    vz = -(vx * nx + vy * ny) / nz
+  
+  if numeric.dot(crossProduct([vx, vy, vz], prograde), normal) < 0
+    twoPi - Math.acos(numeric.dot([vx, vy, vz], prograde))
+  else
+    Math.acos(numeric.dot([vx, vy, vz], prograde))
+
+Orbit.ballisticTransfer = (referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody) ->
   dt = t1 - t0
   
   # TODO: Use heuristic so we don't have to calculate both transfer directions
@@ -316,6 +357,7 @@ Orbit.ballisticTransfer = (referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initia
       insertionDeltaV = 0
     
     transfer.ejectionVelocity = ejectionVelocity
+    transfer.ejectionDeltaVector = ejectionDeltaVector
     transfer.ejectionInclination = ejectionInclination
     transfer.ejectionDeltaV = ejectionDeltaV
     transfer.insertionVelocity = insertionVelocity
@@ -325,11 +367,17 @@ Orbit.ballisticTransfer = (referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initia
       
   transfer = if shortTransfer.deltaV < longTransfer.deltaV then shortTransfer else longTransfer
   
-  if detailed
+  if originBody # We calculate more details of the transfer if an originBody is provided
     transferAngle = Math.acos(numeric.dot(p0, p1) / (numeric.norm2(p0) * numeric.norm2(p1)))
     transferAngle = twoPi - transferAngle if transfer == longTransfer
     
-    # TODO: Ejection angle to prograde
+    # Ejection angle to prograde
+    mu = originBody.gravitationalParameter
+    r = mu / (initialOrbitalVelocity * initialOrbitalVelocity)
+    v = initialOrbitalVelocity + transfer.ejectionDeltaV
+    e = r * v * v / mu - 1 # Eq. 4.30 simplified for a flight path angle of 0
+    transfer.ejectionAngle = ejectionAngle(transfer.ejectionDeltaVector, e, n0, numeric.divVS(v0, numeric.norm2(v0)))
+    
     transfer.orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, transfer.ejectionVelocity, t0)
     transfer.angle = transferAngle
   
