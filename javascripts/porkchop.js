@@ -288,8 +288,8 @@
           $('#arrivalTime').text(kerbalDateString(t1));
           $('#timeOfFlight').text(durationString(t1 - t0));
           $('#phaseAngle').text(angleString(originOrbit.phaseAngle(destinationOrbit, t0), 2));
-          $('#transferPeriapsis').text(distanceString(transfer.orbit.periapsis()));
-          $('#transferApoapsis').text(distanceString(transfer.orbit.apoapsis()));
+          $('#transferPeriapsis').text(distanceString(transfer.orbit.periapsisAltitude()));
+          $('#transferApoapsis').text(distanceString(transfer.orbit.apoapsisAltitude()));
           $('#transferInclination').text(angleString(transfer.orbit.inclination, 2));
           $('#transferAngle').text(angleString(transfer.angle));
           $('#ejectionAngle').text(angleString(transfer.ejectionAngle));
