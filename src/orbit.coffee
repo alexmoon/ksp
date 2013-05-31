@@ -343,15 +343,15 @@ Orbit.ballisticTransfer = (referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initia
     
     ejectionDeltaVector = numeric.subVV(ejectionVelocity, v0)
     ejectionDeltaV = numeric.norm2(ejectionDeltaVector) # This is actually the hyperbolic excess velocity if ejecting from a parking orbit
+    ejectionInclination = halfPi - Math.acos(numeric.dot(ejectionDeltaVector, n0) / ejectionDeltaV)
     if initialOrbitalVelocity
-      ejectionInclination = halfPi - Math.acos(numeric.dot(ejectionDeltaVector, n0) / ejectionDeltaV)
       ejectionDeltaV = circularToHyperbolicDeltaV(initialOrbitalVelocity, ejectionDeltaV, ejectionInclination)
     
     if finalOrbitalVelocity?
       insertionDeltaVector = numeric.subVV(insertionVelocity, v1)
       insertionDeltaV = numeric.norm2(insertionDeltaVector) # This is actually the hyperbolic excess velocity if inserting into a parking orbit
-      if finalOrbitalVelocity != 0
-        insertionInclination = halfPi - Math.acos(numeric.dot(insertionDeltaVector, n1) / insertionDeltaV)
+      insertionInclination = halfPi - Math.acos(numeric.dot(insertionDeltaVector, n1) / insertionDeltaV)
+      if finalOrbitalVelocity
         insertionDeltaV = circularToHyperbolicDeltaV(finalOrbitalVelocity, insertionDeltaV, 0)
     else
       insertionDeltaV = 0

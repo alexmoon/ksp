@@ -408,15 +408,15 @@
       _ref1 = transferVelocities(referenceBody.gravitationalParameter, p0, p1, dt, transfer === longTransfer), ejectionVelocity = _ref1[0], insertionVelocity = _ref1[1];
       ejectionDeltaVector = numeric.subVV(ejectionVelocity, v0);
       ejectionDeltaV = numeric.norm2(ejectionDeltaVector);
+      ejectionInclination = halfPi - Math.acos(numeric.dot(ejectionDeltaVector, n0) / ejectionDeltaV);
       if (initialOrbitalVelocity) {
-        ejectionInclination = halfPi - Math.acos(numeric.dot(ejectionDeltaVector, n0) / ejectionDeltaV);
         ejectionDeltaV = circularToHyperbolicDeltaV(initialOrbitalVelocity, ejectionDeltaV, ejectionInclination);
       }
       if (finalOrbitalVelocity != null) {
         insertionDeltaVector = numeric.subVV(insertionVelocity, v1);
         insertionDeltaV = numeric.norm2(insertionDeltaVector);
-        if (finalOrbitalVelocity !== 0) {
-          insertionInclination = halfPi - Math.acos(numeric.dot(insertionDeltaVector, n1) / insertionDeltaV);
+        insertionInclination = halfPi - Math.acos(numeric.dot(insertionDeltaVector, n1) / insertionDeltaV);
+        if (finalOrbitalVelocity) {
           insertionDeltaV = circularToHyperbolicDeltaV(finalOrbitalVelocity, insertionDeltaV, 0);
         }
       } else {

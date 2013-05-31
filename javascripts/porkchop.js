@@ -129,9 +129,9 @@
   worker.onmessage = function(event) {
     var color, colorIndex, ctx, deltaV, j, maxDeltaV, minDeltaV, relativeDeltaV, x, y, _n, _o, _p;
     if ('progress' in event.data) {
-      return $('#porkchopProgress .bar').show().width((event.data.progress * 100 | 0) + "%");
+      return $('#porkchopProgress').show().find('.bar').width((event.data.progress * 100 | 0) + "%");
     } else if ('deltaVs' in event.data) {
-      $('#porkchopProgress .bar').hide().width("0%");
+      $('#porkchopProgress').hide().find('.bar').width("0%");
       deltaVs = new Float64Array(event.data.deltaVs);
       minDeltaV = event.data.minDeltaV;
       maxDeltaV = 4 * minDeltaV;
@@ -233,10 +233,12 @@
     plotImageData = canvasContext.createImageData(PLOT_WIDTH, PLOT_HEIGHT);
     prepareCanvas();
     $('#porkchopCanvas').mousemove(function(event) {
-      var ctx, deltaV, tip, x, y;
+      var ctx, deltaV, offsetX, offsetY, tip, x, y, _ref, _ref1;
       if (deltaVs != null) {
-        x = event.offsetX - PLOT_X_OFFSET;
-        y = event.offsetY;
+        offsetX = ((_ref = event.offsetX) != null ? _ref : event.pageX - $('#porkchopCanvas').offset().left) | 0;
+        offsetY = ((_ref1 = event.offsetY) != null ? _ref1 : event.pageY - $('#porkchopCanvas').offset().top) | 0;
+        x = offsetX - PLOT_X_OFFSET;
+        y = offsetY;
         ctx = canvasContext;
         ctx.putImageData(plotImageData, PLOT_X_OFFSET, 0);
         if (x >= 0 && x < PLOT_WIDTH && y < PLOT_HEIGHT) {
@@ -256,7 +258,7 @@
             ctx.fillStyle = 'black';
             ctx.textAlign = x < PLOT_WIDTH / 2 ? 'left' : 'right';
             ctx.textBaseline = y > 15 ? 'bottom' : 'top';
-            ctx.fillText(tip, event.offsetX, event.offsetY);
+            ctx.fillText(tip, offsetX, offsetY);
           }
           return ctx.restore();
         }
@@ -268,10 +270,12 @@
       }
     });
     $('#porkchopCanvas').click(function(event) {
-      var n0, n1, p0, p1, t0, t1, transfer, trueAnomaly, v0, v1, x, y;
+      var ejectionAngle, n0, n1, offsetX, offsetY, p0, p1, t0, t1, transfer, trueAnomaly, v0, v1, x, y, _ref, _ref1;
       if (deltaVs != null) {
-        x = event.offsetX - PLOT_X_OFFSET;
-        y = event.offsetY;
+        offsetX = ((_ref = event.offsetX) != null ? _ref : event.pageX - $('#porkchopCanvas').offset().left) | 0;
+        offsetY = ((_ref1 = event.offsetY) != null ? _ref1 : event.pageY - $('#porkchopCanvas').offset().top) | 0;
+        x = offsetX - PLOT_X_OFFSET;
+        y = offsetY;
         if (x >= 0 && x < PLOT_WIDTH && y < PLOT_HEIGHT && !isNaN(deltaVs[(y * PLOT_WIDTH + x) | 0])) {
           t0 = earliestDeparture + x * xScale / PLOT_WIDTH;
           t1 = earliestArrival + ((PLOT_HEIGHT - 1) - y) * yScale / PLOT_HEIGHT;
@@ -292,17 +296,29 @@
           $('#transferApoapsis').text(distanceString(transfer.orbit.apoapsisAltitude()));
           $('#transferInclination').text(angleString(transfer.orbit.inclination, 2));
           $('#transferAngle').text(angleString(transfer.angle));
-          $('#ejectionAngle').text(angleString(transfer.ejectionAngle));
+          if (destinationOrbit.semiMajorAxis < originOrbit.semiMajorAxis) {
+            ejectionAngle = transfer.ejectionAngle - Math.PI;
+            if (ejectionAngle < 0) {
+              ejectionAngle += 2 * Math.PI;
+            }
+            $('#ejectionAngle').text(angleString(ejectionAngle) + " to retrograde");
+          } else {
+            $('#ejectionAngle').text(angleString(transfer.ejectionAngle) + " to prograde");
+          }
           $('#ejectionInclination').text(angleString(transfer.ejectionInclination, 2));
           $('#ejectionDeltaV').text(numberWithCommas(transfer.ejectionDeltaV.toFixed()) + " m/s");
-          if (finalOrbitalVelocity === 0) {
-            $('#insertionInclination').text("N/A");
-            $('#insertionDeltaV').text("N/A");
-          } else {
+          if (transfer.insertionInclination != null) {
             $('#insertionInclination').text(angleString(transfer.insertionInclination, 2));
-            $('#insertionDeltaV').text(numberWithCommas(transfer.insertionDeltaV.toFixed()) + " m/s");
+          } else {
+            $('#insertionInclination').text("N/A");
           }
-          return $('#totalDeltaV').text(numberWithCommas(transfer.deltaV.toFixed()) + " m/s");
+          if (transfer.insertionDeltaV !== 0) {
+            $('#insertionDeltaV').text(numberWithCommas(transfer.insertionDeltaV.toFixed()) + " m/s");
+          } else {
+            $('#insertionDeltaV').text("N/A");
+          }
+          $('#totalDeltaV').text(numberWithCommas(transfer.deltaV.toFixed()) + " m/s");
+          return $('#transferDetails:hidden').fadeIn();
         }
       }
     });
@@ -328,18 +344,32 @@
     $('#originSelect').change();
     $('#destinationSelect').val('Duna');
     return $('#porkchopForm').submit(function(event) {
-      var ctx, destinationBody, destinationBodyName, finalOrbit, hohmannTransfer, initialOrbit, originBodyName, _n, _o;
+      var ctx, destinationBody, destinationBodyName, finalOrbit, hohmannTransfer, initialOrbit, originBodyName, scrollTop, _n, _o;
       event.preventDefault();
       $('#porkchopSubmit').prop('disabled', true);
+      scrollTop = $('#porkchopCanvas').offset().top + $('#porkchopCanvas').height() - $(window).height();
+      if ($(document).scrollTop() < scrollTop) {
+        $("html,body").animate({
+          scrollTop: scrollTop
+        }, 500);
+      }
       originBodyName = $('#originSelect').val();
       destinationBodyName = $('#destinationSelect').val();
       initialOrbit = $('#initialOrbit').val().trim();
       finalOrbit = $('#finalOrbit').val().trim();
       originBody = CelestialBody[originBodyName];
       destinationBody = CelestialBody[destinationBodyName];
-      initialOrbitalVelocity = originBody.circularOrbitVelocity(initialOrbit * 1e3);
+      if (+initialOrbit === 0) {
+        initialOrbitalVelocity = 0;
+      } else {
+        initialOrbitalVelocity = originBody.circularOrbitVelocity(initialOrbit * 1e3);
+      }
       if (finalOrbit) {
-        finalOrbitalVelocity = destinationBody.circularOrbitVelocity(finalOrbit * 1e3);
+        if (+finalOrbit === 0) {
+          finalOrbitalVelocity = 0;
+        } else {
+          finalOrbitalVelocity = destinationBody.circularOrbitVelocity(finalOrbit * 1e3);
+        }
       } else {
         finalOrbitalVelocity = null;
       }

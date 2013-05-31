@@ -72,9 +72,9 @@ worker = new Worker("javascripts/porkchopworker.js")
 
 worker.onmessage = (event) ->
   if 'progress' of event.data
-    $('#porkchopProgress .bar').show().width((event.data.progress * 100 | 0) + "%")
+    $('#porkchopProgress').show().find('.bar').width((event.data.progress * 100 | 0) + "%")
   else if 'deltaVs' of event.data
-    $('#porkchopProgress .bar').hide().width("0%")
+    $('#porkchopProgress').hide().find('.bar').width("0%")
     deltaVs = new Float64Array(event.data.deltaVs)
     minDeltaV = event.data.minDeltaV
     maxDeltaV = 4 * minDeltaV
@@ -186,8 +186,10 @@ $(document).ready ->
   
   $('#porkchopCanvas').mousemove (event) ->
     if deltaVs?
-      x = event.offsetX - PLOT_X_OFFSET
-      y = event.offsetY
+      offsetX = event.offsetX ? (event.pageX - $('#porkchopCanvas').offset().left) | 0
+      offsetY = event.offsetY ? (event.pageY - $('#porkchopCanvas').offset().top) | 0
+      x = offsetX - PLOT_X_OFFSET
+      y = offsetY
       ctx = canvasContext
       ctx.putImageData(plotImageData, PLOT_X_OFFSET, 0)
       if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT
@@ -209,7 +211,7 @@ $(document).ready ->
           ctx.fillStyle = 'black'
           ctx.textAlign = if x < PLOT_WIDTH / 2 then 'left' else 'right'
           ctx.textBaseline = if y > 15 then 'bottom' else 'top'
-          ctx.fillText(tip, event.offsetX, event.offsetY)
+          ctx.fillText(tip, offsetX, offsetY)
       
         ctx.restore()
       
@@ -218,8 +220,10 @@ $(document).ready ->
   
   $('#porkchopCanvas').click (event) ->
     if deltaVs?
-      x = event.offsetX - PLOT_X_OFFSET
-      y = event.offsetY
+      offsetX = event.offsetX ? (event.pageX - $('#porkchopCanvas').offset().left) | 0
+      offsetY = event.offsetY ? (event.pageY - $('#porkchopCanvas').offset().top) | 0
+      x = offsetX - PLOT_X_OFFSET
+      y = offsetY
       if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT and !isNaN(deltaVs[(y * PLOT_WIDTH + x) | 0])
         t0 = earliestDeparture + x * xScale / PLOT_WIDTH
         t1 = earliestArrival + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
@@ -244,16 +248,25 @@ $(document).ready ->
         $('#transferApoapsis').text(distanceString(transfer.orbit.apoapsisAltitude()))
         $('#transferInclination').text(angleString(transfer.orbit.inclination, 2))
         $('#transferAngle').text(angleString(transfer.angle))
-        $('#ejectionAngle').text(angleString(transfer.ejectionAngle))
+        if destinationOrbit.semiMajorAxis < originOrbit.semiMajorAxis
+          ejectionAngle = transfer.ejectionAngle - Math.PI
+          ejectionAngle += 2 * Math.PI if ejectionAngle < 0
+          $('#ejectionAngle').text(angleString(ejectionAngle) + " to retrograde")
+        else
+          $('#ejectionAngle').text(angleString(transfer.ejectionAngle) + " to prograde")
         $('#ejectionInclination').text(angleString(transfer.ejectionInclination, 2))
         $('#ejectionDeltaV').text(numberWithCommas(transfer.ejectionDeltaV.toFixed()) + " m/s")
-        if finalOrbitalVelocity == 0
-          $('#insertionInclination').text("N/A")
-          $('#insertionDeltaV').text("N/A")
-        else
+        if transfer.insertionInclination?
           $('#insertionInclination').text(angleString(transfer.insertionInclination, 2))
+        else
+          $('#insertionInclination').text("N/A")
+        if transfer.insertionDeltaV != 0
           $('#insertionDeltaV').text(numberWithCommas(transfer.insertionDeltaV.toFixed()) + " m/s")
+        else
+          $('#insertionDeltaV').text("N/A")
         $('#totalDeltaV').text(numberWithCommas(transfer.deltaV.toFixed()) + " m/s")
+        
+        $('#transferDetails:hidden').fadeIn()
         
   $('#originSelect').change (event) ->
     origin = CelestialBody[$(this).val()]
@@ -274,6 +287,9 @@ $(document).ready ->
     event.preventDefault()
     $('#porkchopSubmit').prop('disabled', true)
     
+    scrollTop = $('#porkchopCanvas').offset().top + $('#porkchopCanvas').height() - $(window).height()
+    $("html,body").animate(scrollTop: scrollTop, 500) if $(document).scrollTop() < scrollTop
+    
     originBodyName = $('#originSelect').val()
     destinationBodyName = $('#destinationSelect').val()
     initialOrbit = $('#initialOrbit').val().trim()
@@ -282,10 +298,16 @@ $(document).ready ->
     originBody = CelestialBody[originBodyName]
     destinationBody = CelestialBody[destinationBodyName]
     
-    initialOrbitalVelocity = originBody.circularOrbitVelocity(initialOrbit * 1e3)
+    if +initialOrbit == 0
+      initialOrbitalVelocity = 0
+    else
+      initialOrbitalVelocity = originBody.circularOrbitVelocity(initialOrbit * 1e3)
         
     if finalOrbit
-      finalOrbitalVelocity = destinationBody.circularOrbitVelocity(finalOrbit * 1e3)
+      if +finalOrbit == 0
+        finalOrbitalVelocity = 0
+      else
+        finalOrbitalVelocity = destinationBody.circularOrbitVelocity(finalOrbit * 1e3)
     else
       finalOrbitalVelocity = null
     
