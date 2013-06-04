@@ -137,6 +137,9 @@
     } else if ('deltaVs' in event.data) {
       $('#porkchopProgress').hide().find('.bar').width("0%");
       deltaVs = event.data.deltaVs;
+      if (deltaVs instanceof ArrayBuffer) {
+        deltaVs = new Float64Array(deltaVs);
+      }
       minDeltaV = event.data.minDeltaV;
       maxDeltaV = 4 * minDeltaV;
       selectedPoint = event.data.minDeltaVPoint;

@@ -78,6 +78,7 @@ worker.onmessage = (event) ->
   else if 'deltaVs' of event.data
     $('#porkchopProgress').hide().find('.bar').width("0%")
     deltaVs = event.data.deltaVs
+    deltaVs = new Float64Array(deltaVs) if deltaVs instanceof ArrayBuffer
     minDeltaV = event.data.minDeltaV
     maxDeltaV = 4 * minDeltaV
     selectedPoint = event.data.minDeltaVPoint

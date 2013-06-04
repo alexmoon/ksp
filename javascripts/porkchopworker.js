@@ -74,7 +74,7 @@
     }
     try {
       return postMessage({
-        deltaVs: deltaVs,
+        deltaVs: deltaVs.buffer,
         minDeltaV: minDeltaV,
         minDeltaVPoint: minDeltaVPoint,
         maxDeltaV: maxDeltaV

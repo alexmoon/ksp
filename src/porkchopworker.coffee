@@ -65,7 +65,7 @@ HEIGHT = 300
       lastProgress = now
   
   try
-    postMessage({ deltaVs: deltaVs, minDeltaV: minDeltaV, minDeltaVPoint: minDeltaVPoint, maxDeltaV: maxDeltaV }, [deltaVs.buffer])
+    postMessage({ deltaVs: deltaVs.buffer, minDeltaV: minDeltaV, minDeltaVPoint: minDeltaVPoint, maxDeltaV: maxDeltaV }, [deltaVs.buffer])
   catch error
     if error instanceof TypeError
       postMessage({ deltaVs: deltaVs, minDeltaV: minDeltaV, minDeltaVPoint: minDeltaVPoint, maxDeltaV: maxDeltaV })
