@@ -47,7 +47,15 @@
       if (argumentOfPeriapsis != null) {
         this.argumentOfPeriapsis = argumentOfPeriapsis * Math.PI / 180;
       }
+      if (this.isHyperbolic()) {
+        this.timeOfPeriapsisPassage = this.meanAnomalyAtEpoch;
+        delete this.meanAnomalyAtEpoch;
+      }
     }
+
+    Orbit.prototype.isHyperbolic = function() {
+      return this.eccentricity > 1;
+    };
 
     Orbit.prototype.apoapsis = function() {
       return this.semiMajorAxis * (1 + this.eccentricity);
@@ -79,12 +87,16 @@
 
     Orbit.prototype.meanMotion = function() {
       var a;
-      a = this.semiMajorAxis;
+      a = Math.abs(this.semiMajorAxis);
       return Math.sqrt(this.referenceBody.gravitationalParameter / (a * a * a));
     };
 
     Orbit.prototype.period = function() {
-      return twoPi / this.meanMotion();
+      if (this.isHyperbolic()) {
+        return Infinity;
+      } else {
+        return twoPi / this.meanMotion();
+      }
     };
 
     Orbit.prototype.rotationToReferenceFrame = function() {
@@ -116,50 +128,110 @@
     };
 
     Orbit.prototype.meanAnomalyAt = function(t) {
-      return this.meanAnomalyAtEpoch + this.meanMotion() * (t % this.period());
+      if (this.isHyperbolic()) {
+        return (t - this.timeOfPeriapsisPassage) * this.meanMotion();
+      } else {
+        return (this.meanAnomalyAtEpoch + this.meanMotion() * (t % this.period())) % twoPi;
+      }
     };
 
     Orbit.prototype.eccentricAnomalyAt = function(t) {
-      var E, E0, M;
-      E = M = this.meanAnomalyAt(t);
-      while (true) {
-        E0 = E;
-        E = M + this.eccentricity * Math.sin(E0);
-        if (Math.abs(E - E0) < 1e-6) {
-          return E;
+      var E, E0, H, H0, M, e;
+      e = this.eccentricity;
+      M = this.meanAnomalyAt(t);
+      if (this.isHyperbolic()) {
+        H0 = M;
+        while (true) {
+          H = H0 + (M - e * sinh(H0) + H0) / (e * cosh(H0) - 1);
+          if (isNaN(H) || Math.abs(H - H0) < 1e-6) {
+            return H;
+          }
+          H0 = H;
+        }
+      } else {
+        E0 = M;
+        while (true) {
+          E = M + e * Math.sin(E0);
+          if (Math.abs(E - E0) < 1e-6) {
+            return E;
+          }
+          E0 = E;
         }
       }
     };
 
     Orbit.prototype.trueAnomalyAt = function(t) {
-      var E, tA;
-      E = this.eccentricAnomalyAt(t);
-      tA = 2 * Math.atan(Math.sqrt((1 + this.eccentricity) / (1 - this.eccentricity)) * Math.tan(E / 2));
-      if (tA < 0) {
-        return tA + twoPi;
+      var E, H, e, tA;
+      e = this.eccentricity;
+      if (this.isHyperbolic()) {
+        H = this.eccentricAnomalyAt(t);
+        tA = Math.acos((e - cosh(H)) / (cosh(H) * e - 1));
+        if (H < 0) {
+          return -tA;
+        } else {
+          return tA;
+        }
       } else {
-        return tA;
+        E = this.eccentricAnomalyAt(t);
+        tA = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
+        if (tA < 0) {
+          return tA + twoPi;
+        } else {
+          return tA;
+        }
       }
     };
 
     Orbit.prototype.eccentricAnomalyAtTrueAnomaly = function(tA) {
-      var E;
-      E = 2 * Math.atan(Math.tan(tA / 2) / Math.sqrt((1 + this.eccentricity) / (1 - this.eccentricity)));
-      if (E < 0) {
-        return E + twoPi;
+      var E, H, cosTrueAnomaly, e;
+      e = this.eccentricity;
+      if (this.isHyperbolic()) {
+        cosTrueAnomaly = Math.cos(tA);
+        H = acosh((e + cosTrueAnomaly) / (1 + e * cosTrueAnomaly));
+        if (tA < 0) {
+          return -H;
+        } else {
+          return H;
+        }
       } else {
-        return E;
+        E = 2 * Math.atan(Math.tan(tA / 2) / Math.sqrt((1 + e) / (1 - e)));
+        if (E < 0) {
+          return E + twoPi;
+        } else {
+          return E;
+        }
       }
     };
 
     Orbit.prototype.meanAnomalyAtTrueAnomaly = function(tA) {
-      var E;
-      E = this.eccentricAnomalyAtTrueAnomaly(tA);
-      return E - this.eccentricity * Math.sin(E);
+      var E, H, e;
+      e = this.eccentricity;
+      if (this.isHyperbolic()) {
+        H = this.eccentricAnomalyAtTrueAnomaly(tA);
+        return e * sinh(H) - H;
+      } else {
+        E = this.eccentricAnomalyAtTrueAnomaly(tA);
+        return E - e * Math.sin(E);
+      }
     };
 
-    Orbit.prototype.timeAtTrueAnomaly = function(tA) {
-      return this.meanAnomalyAtTrueAnomaly(tA) / this.meanMotion();
+    Orbit.prototype.timeAtTrueAnomaly = function(tA, t0) {
+      var M, p, t;
+      if (t0 == null) {
+        t0 = 0;
+      }
+      M = this.meanAnomalyAtTrueAnomaly(tA);
+      if (this.isHyperbolic()) {
+        return this.timeOfPeriapsisPassage + M / this.meanMotion();
+      } else {
+        p = this.period();
+        t = (t0 - (t0 % p)) + (M - this.meanAnomalyAtEpoch) / this.meanMotion();
+        if (t < t0) {
+          return t + p;
+        } else {
+          return t;
+        }
+      }
     };
 
     Orbit.prototype.radiusAtTrueAnomaly = function(tA) {
@@ -251,13 +323,13 @@
   };
 
   Orbit.fromPositionAndVelocity = function(referenceBody, position, velocity, t) {
-    var eccentricity, eccentricityVector, meanAnomaly, mu, n, nodeVector, orbit, r, semiMajorAxis, specificAngularMomentum, trueAnomaly, v;
+    var eccentricity, eccentricityVector, meanAnomaly, mu, nodeVector, orbit, r, semiMajorAxis, specificAngularMomentum, trueAnomaly, v;
     mu = referenceBody.gravitationalParameter;
     r = numeric.norm2(position);
     v = numeric.norm2(velocity);
     specificAngularMomentum = crossProduct(position, velocity);
-    nodeVector = crossProduct([0, 0, 1], specificAngularMomentum);
-    n = numeric.norm2(nodeVector);
+    nodeVector = [-specificAngularMomentum[1], specificAngularMomentum[0], 0];
+    nodeVector = numeric.divVS(nodeVector, numeric.norm2(nodeVector));
     eccentricityVector = numeric.mulSV(1 / mu, numeric.subVV(numeric.mulSV(v * v - mu / r, position), numeric.mulSV(numeric.dot(position, velocity), velocity)));
     semiMajorAxis = 1 / (2 / r - v * v / mu);
     eccentricity = numeric.norm2(eccentricityVector);
@@ -267,21 +339,25 @@
       orbit.argumentOfPeriapsis = 0;
       orbit.longitudeOfAscendingNode = 0;
     } else {
-      orbit.longitudeOfAscendingNode = Math.acos(nodeVector[0] / n);
+      orbit.longitudeOfAscendingNode = Math.acos(nodeVector[0]);
       if (nodeVector[1] < 0) {
         orbit.longitudeOfAscendingNode = twoPi - orbit.longitudeOfAscendingNode;
       }
-      orbit.argumentOfPeriapsis = Math.acos(numeric.dot(nodeVector, eccentricityVector) / (n * eccentricity));
+      orbit.argumentOfPeriapsis = Math.acos(numeric.dot(nodeVector, eccentricityVector) / eccentricity);
       if (eccentricityVector[2] < 0) {
         orbit.argumentOfPeriapsis = twoPi - orbit.argumentOfPeriapsis;
       }
     }
     trueAnomaly = Math.acos(numeric.dot(eccentricityVector, position) / (eccentricity * r));
-    if (eccentricityVector[2] < 0) {
-      trueAnomaly = twoPi - trueAnomaly;
+    if (numeric.dot(position, velocity) < 0) {
+      trueAnomaly = -trueAnomaly;
     }
     meanAnomaly = orbit.meanAnomalyAtTrueAnomaly(trueAnomaly);
-    orbit.meanAnomalyAtEpoch = meanAnomaly - orbit.meanMotion() * (t % orbit.period());
+    if (orbit.isHyperbolic()) {
+      orbit.timeOfPeriapsisPassage = t - meanAnomaly / orbit.meanMotion();
+    } else {
+      orbit.meanAnomalyAtEpoch = meanAnomaly - orbit.meanMotion() * (t % orbit.period());
+    }
     return orbit;
   };
 
@@ -397,53 +473,92 @@
     }
   };
 
-  Orbit.ballisticTransfer = function(referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody) {
-    var dt, e, ejectionDeltaV, ejectionDeltaVector, ejectionInclination, ejectionVelocity, insertionDeltaV, insertionDeltaVector, insertionInclination, insertionVelocity, longTransfer, mu, r, shortTransfer, transfer, transferAngle, v, _i, _len, _ref, _ref1;
+  Orbit.transfer = function(transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody) {
+    var ballisticTransfer, dt, e, ejectionDeltaV, ejectionDeltaVector, ejectionInclination, ejectionVelocity, insertionDeltaV, insertionDeltaVector, insertionInclination, insertionVelocity, longTransfer, mu, orbit, p1Direction, p1InOriginPlane, planeChangeAngle, planeChangeAxis, planeChangeDeltaV, planeChangeRotation, planeChangeTime, planeChangeTransfer, planeChangeTrueAnomaly, r, shortTransfer, transfer, transferAngle, v, _i, _len, _ref, _ref1, _ref2, _ref3;
+    if (transferType === "optimal") {
+      ballisticTransfer = Orbit.transfer("ballistic", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody);
+      if (ballisticTransfer.angle <= halfPi || ballisticTransfer.angle >= (twoPi - halfPi)) {
+        return ballisticTransfer;
+      }
+      planeChangeTransfer = Orbit.transfer("planeChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody);
+      if (ballisticTransfer.deltaV < planeChangeTransfer.deltaV) {
+        return ballisticTransfer;
+      } else {
+        return planeChangeTransfer;
+      }
+    } else if (transferType === "planeChange") {
+      p1Direction = numeric.divVS(p1, numeric.norm2(p1));
+      planeChangeAngle = Math.asin(numeric.dot(p1Direction, n0));
+      if (planeChangeAngle !== 0) {
+        planeChangeAxis = crossProduct(p1Direction, n0);
+        planeChangeRotation = quaternion.fromAngleAxis(planeChangeAngle, planeChangeAxis);
+        p1InOriginPlane = quaternion.rotate(quaternion.conjugate(planeChangeRotation), p1);
+      }
+    }
     dt = t1 - t0;
     shortTransfer = {};
     longTransfer = {};
     _ref = [shortTransfer, longTransfer];
     for (_i = 0, _len = _ref.length; _i < _len; _i++) {
       transfer = _ref[_i];
-      _ref1 = transferVelocities(referenceBody.gravitationalParameter, p0, p1, dt, transfer === longTransfer), ejectionVelocity = _ref1[0], insertionVelocity = _ref1[1];
+      transferAngle = Math.acos(numeric.dot(p0, p1) / (numeric.norm2(p0) * numeric.norm2(p1)));
+      if (transfer === longTransfer) {
+        transferAngle = twoPi - transferAngle;
+      }
+      if (!planeChangeAngle || transferAngle <= halfPi) {
+        _ref1 = transferVelocities(referenceBody.gravitationalParameter, p0, p1, dt, transfer === longTransfer), ejectionVelocity = _ref1[0], insertionVelocity = _ref1[1];
+        planeChangeDeltaV = 0;
+      } else {
+        _ref2 = transferVelocities(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt, transfer === longTransfer), ejectionVelocity = _ref2[0], insertionVelocity = _ref2[1];
+        orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0);
+        planeChangeTrueAnomaly = orbit.trueAnomalyAt(t1) - halfPi;
+        planeChangeDeltaV = Math.abs(2 * orbit.speedAtTrueAnomaly(planeChangeTrueAnomaly) * Math.sin(planeChangeAngle / 2));
+        if (isNaN(planeChangeDeltaV)) {
+          planeChangeDeltaV = 0;
+        }
+        planeChangeTime = orbit.timeAtTrueAnomaly(planeChangeTrueAnomaly, t0);
+        insertionVelocity = quaternion.rotate(planeChangeRotation, insertionVelocity);
+      }
       ejectionDeltaVector = numeric.subVV(ejectionVelocity, v0);
       ejectionDeltaV = numeric.norm2(ejectionDeltaVector);
-      ejectionInclination = halfPi - Math.acos(numeric.dot(ejectionDeltaVector, n0) / ejectionDeltaV);
+      ejectionInclination = Math.asin(numeric.dot(ejectionDeltaVector, n0) / ejectionDeltaV);
       if (initialOrbitalVelocity) {
         ejectionDeltaV = circularToHyperbolicDeltaV(initialOrbitalVelocity, ejectionDeltaV, ejectionInclination);
       }
       if (finalOrbitalVelocity != null) {
         insertionDeltaVector = numeric.subVV(insertionVelocity, v1);
         insertionDeltaV = numeric.norm2(insertionDeltaVector);
-        insertionInclination = halfPi - Math.acos(numeric.dot(insertionDeltaVector, n1) / insertionDeltaV);
+        insertionInclination = Math.asin(numeric.dot(insertionDeltaVector, n1) / insertionDeltaV);
         if (finalOrbitalVelocity) {
           insertionDeltaV = circularToHyperbolicDeltaV(finalOrbitalVelocity, insertionDeltaV, 0);
         }
       } else {
         insertionDeltaV = 0;
       }
+      transfer.angle = transferAngle;
+      transfer.orbit = orbit;
       transfer.ejectionVelocity = ejectionVelocity;
       transfer.ejectionDeltaVector = ejectionDeltaVector;
       transfer.ejectionInclination = ejectionInclination;
       transfer.ejectionDeltaV = ejectionDeltaV;
+      transfer.planeChangeDeltaV = planeChangeDeltaV;
+      transfer.planeChangeTime = planeChangeTime;
+      transfer.planeChangeAngle = planeChangeTime != null ? planeChangeAngle : 0;
       transfer.insertionVelocity = insertionVelocity;
       transfer.insertionInclination = insertionInclination;
       transfer.insertionDeltaV = insertionDeltaV;
-      transfer.deltaV = ejectionDeltaV + insertionDeltaV;
+      transfer.deltaV = ejectionDeltaV + planeChangeDeltaV + insertionDeltaV;
     }
     transfer = shortTransfer.deltaV < longTransfer.deltaV ? shortTransfer : longTransfer;
     if (originBody) {
-      transferAngle = Math.acos(numeric.dot(p0, p1) / (numeric.norm2(p0) * numeric.norm2(p1)));
-      if (transfer === longTransfer) {
-        transferAngle = twoPi - transferAngle;
-      }
       mu = originBody.gravitationalParameter;
       r = mu / (initialOrbitalVelocity * initialOrbitalVelocity);
       v = initialOrbitalVelocity + transfer.ejectionDeltaV;
       e = r * v * v / mu - 1;
       transfer.ejectionAngle = ejectionAngle(transfer.ejectionDeltaVector, e, n0, numeric.divVS(v0, numeric.norm2(v0)));
-      transfer.orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, transfer.ejectionVelocity, t0);
-      transfer.angle = transferAngle;
+      if ((_ref3 = transfer.orbit) == null) {
+        transfer.orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, transfer.ejectionVelocity, t0);
+      }
     }
     return transfer;
   };

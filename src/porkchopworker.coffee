@@ -6,6 +6,7 @@ WIDTH = 300
 HEIGHT = 300
 
 @onmessage = (event) ->
+  transferType = event.data.transferType
   originOrbit = Orbit.fromJSON(event.data.originOrbit)
   initialOrbitalVelocity = event.data.initialOrbitalVelocity
   destinationOrbit = Orbit.fromJSON(event.data.destinationOrbit)
@@ -49,10 +50,13 @@ HEIGHT = 300
       v1 = originVelocities[x]
       dt = arrivalTime - departureTime
   
-      transfer = Orbit.ballisticTransfer(referenceBody, departureTime, p1, v1, n1, arrivalTime, p2, v2, n2, initialOrbitalVelocity, finalOrbitalVelocity)
+      transfer = Orbit.transfer(transferType, referenceBody, departureTime, p1, v1, n1, arrivalTime, p2, v2, n2, initialOrbitalVelocity, finalOrbitalVelocity)
       deltaVs[i++] = deltaV = transfer.deltaV
 
-      minDeltaV = Math.min(deltaV, minDeltaV)
+      if deltaV < minDeltaV
+        minDeltaV = deltaV
+        minDeltaVPoint = { x: x, y: y }
+      
       maxDeltaV = Math.max(deltaV, maxDeltaV)
     
     now = Date.now()
@@ -61,9 +65,9 @@ HEIGHT = 300
       lastProgress = now
   
   try
-    postMessage({ deltaVs: deltaVs.buffer, minDeltaV: minDeltaV, maxDeltaV: maxDeltaV }, [deltaVs.buffer])
+    postMessage({ deltaVs: deltaVs, minDeltaV: minDeltaV, minDeltaVPoint: minDeltaVPoint, maxDeltaV: maxDeltaV }, [deltaVs.buffer])
   catch error
     if error instanceof TypeError
-      postMessage({ deltaVs: deltaVs.buffer, minDeltaV: minDeltaV, maxDeltaV: maxDeltaV })
+      postMessage({ deltaVs: deltaVs, minDeltaV: minDeltaV, minDeltaVPoint: minDeltaVPoint, maxDeltaV: maxDeltaV })
     else
       throw error

@@ -13,7 +13,8 @@
   HEIGHT = 300;
 
   this.onmessage = function(event) {
-    var arrivalTime, deltaV, deltaVs, departureTime, destinationOrbit, dt, earliestArrival, earliestDeparture, finalOrbitalVelocity, i, initialOrbitalVelocity, lastProgress, maxDeltaV, minDeltaV, n1, n2, now, originOrbit, originPositions, originVelocities, p1, p2, referenceBody, transfer, trueAnomaly, v1, v2, x, xResolution, y, yResolution, _i, _j, _k;
+    var arrivalTime, deltaV, deltaVs, departureTime, destinationOrbit, dt, earliestArrival, earliestDeparture, finalOrbitalVelocity, i, initialOrbitalVelocity, lastProgress, maxDeltaV, minDeltaV, minDeltaVPoint, n1, n2, now, originOrbit, originPositions, originVelocities, p1, p2, referenceBody, transfer, transferType, trueAnomaly, v1, v2, x, xResolution, y, yResolution, _i, _j, _k;
+    transferType = event.data.transferType;
     originOrbit = Orbit.fromJSON(event.data.originOrbit);
     initialOrbitalVelocity = event.data.initialOrbitalVelocity;
     destinationOrbit = Orbit.fromJSON(event.data.destinationOrbit);
@@ -52,9 +53,15 @@
         p1 = originPositions[x];
         v1 = originVelocities[x];
         dt = arrivalTime - departureTime;
-        transfer = Orbit.ballisticTransfer(referenceBody, departureTime, p1, v1, n1, arrivalTime, p2, v2, n2, initialOrbitalVelocity, finalOrbitalVelocity);
+        transfer = Orbit.transfer(transferType, referenceBody, departureTime, p1, v1, n1, arrivalTime, p2, v2, n2, initialOrbitalVelocity, finalOrbitalVelocity);
         deltaVs[i++] = deltaV = transfer.deltaV;
-        minDeltaV = Math.min(deltaV, minDeltaV);
+        if (deltaV < minDeltaV) {
+          minDeltaV = deltaV;
+          minDeltaVPoint = {
+            x: x,
+            y: y
+          };
+        }
         maxDeltaV = Math.max(deltaV, maxDeltaV);
       }
       now = Date.now();
@@ -67,15 +74,17 @@
     }
     try {
       return postMessage({
-        deltaVs: deltaVs.buffer,
+        deltaVs: deltaVs,
         minDeltaV: minDeltaV,
+        minDeltaVPoint: minDeltaVPoint,
         maxDeltaV: maxDeltaV
       }, [deltaVs.buffer]);
     } catch (error) {
       if (error instanceof TypeError) {
         return postMessage({
-          deltaVs: deltaVs.buffer,
+          deltaVs: deltaVs,
           minDeltaV: minDeltaV,
+          minDeltaVPoint: minDeltaVPoint,
           maxDeltaV: maxDeltaV
         });
       } else {

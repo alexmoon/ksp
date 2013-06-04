@@ -97,6 +97,16 @@
                     day <input type="number" id="earliestDepartureDay" style="width: 63px" value="1" min="1" step="1"></input>
                   </div>
                 </div>
+                <div class="control-group">
+                  <label class="control-label" for="transferTypeSelect">Transfer type:</label>
+                  <div class="controls">
+                    <select id="transferTypeSelect">
+    									<option value="ballistic" selected>Ballistic</option>
+    									<option value="planeChange">Mid-course plane change</option>
+    									<option value="optimal">Optimal</option>
+                    </select>
+                  </div>
+                </div>
                 <div class="form-actions">
                   <button type="submit" id="porkchopSubmit" class="btn btn-primary">Plot it!</button>
                   <button type="reset" id="reset" class="btn">Reset</button>
@@ -142,18 +152,24 @@
               <dd id="phaseAngle"></dd>
               <dt>Ejection angle</dt>
               <dd id="ejectionAngle"></dd>
-              <dt>Ejection inclination</dt>
-              <dd id="ejectionInclination"></dd>
+              <dt class="ballisticTransfer">Ejection inclination</dt>
+              <dd id="ejectionInclination" class="ballisticTransfer"></dd>
               <dt>Ejection delta-v</dt>
               <dd id="ejectionDeltaV"></dd>
               <dt>Transfer periapsis</dt>
               <dd id="transferPeriapsis"></dd>
               <dt>Transfer apoapsis</dt>
               <dd id="transferApoapsis"></dd>
-              <dt>Transfer inclination</dt>
-              <dd id="transferInclination"></dd>
+              <dt class="ballisticTransfer">Transfer inclination</dt>
+              <dd id="transferInclination" class="ballisticTransfer"></dd>
               <dt>Transfer angle</dt>
               <dd id="transferAngle"></dd>
+              <dt class="planeChangeTransfer">Plane change time</dt>
+              <dd id="planeChangeTime" class="planeChangeTransfer"></dd>
+              <dt class="planeChangeTransfer">Plane change angle</dt>
+              <dd id="planeChangeAngle" class="planeChangeTransfer"></dd>
+              <dt class="planeChangeTransfer">Plane change delta-v</dt>
+              <dd id="planeChangeDeltaV" class="planeChangeTransfer"></dd>
               <dt>Insertion inclination</dt>
               <dd id="insertionInclination"></dd>
               <dt>Insertion delta-v</dt>
