@@ -325,6 +325,7 @@
         $('.ballisticTransfer').hide();
         $('.planeChangeTransfer').show();
         $('#planeChangeTime').text(kerbalDateString(transfer.planeChangeTime));
+        $('#planeChangeAngleToIntercept').text(angleString(transfer.planeChangeAngleToIntercept, 2));
         $('#planeChangeAngle').text(angleString(transfer.planeChangeAngle, 2));
         $('#planeChangeDeltaV').text(numberWithCommas(transfer.planeChangeDeltaV.toFixed()) + " m/s");
       } else {

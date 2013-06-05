@@ -1,6 +1,7 @@
 # Utility functions and constants
 twoPi = 2 * Math.PI
 halfPi = 0.5 * Math.PI
+goldenRatio = (1 + Math.sqrt(5)) / 2
 
 sinh = (angle) ->
   p = Math.exp(angle)
@@ -19,6 +20,44 @@ crossProduct = (a, b) ->
   r[1] = a[2] * b[0] - a[0] * b[2]
   r[2] = a[0] * b[1] - a[1] * b[0]
   r
+
+normalize = (v) -> numeric.divVS(v, numeric.norm2(v))
+
+projectToPlane = (p, n) -> numeric.subVV(p, numeric.mulSV(numeric.dot(p, n), n))
+
+# Finds the minimum of f(x) between x1 and x2. Returns x.
+# See: http://en.wikipedia.org/wiki/Golden_section_search
+goldenSectionSearch = (x1, x2, f) ->
+  k = 2 - goldenRatio
+  x3 = x2
+  x2 = x1 + k * (x3 - x1)
+  
+  y2 = f(x2)
+  
+  loop
+    if (x3 - x2) > (x2 - x1)
+      x = x2 + k * (x3 - x2)
+    else
+      x = x2 - k * (x2 - x1)
+    
+    return (x3 + x1) / 2 if (x3 - x1) < (1e-2 * (x2 + x)) # Close enough
+    
+    y = f(x)
+    if y < y2
+      if (x3 - x2) > (x2 - x1) then x1 = x2 else x3 = x2
+      x2 = x
+      y2 = y
+    else
+      if (x3 - x2) > (x2 - x1) then x3 = x else x1 = x
+
+# Finds x between x1 and x2 where f(x) == value
+binarySearch = (x1, x2, value, f) ->
+  loop
+    x = (x1 + x2) / 2
+    return x if x == x1 or x == x2 # Limits of binary precision
+    y = f(x)
+    return x if Math.abs(1 - y / value) < 1e-6 # Close enough
+    if y < value then x2 = x else x1 = x
 
 
 (exports ? this).Orbit = class Orbit
@@ -231,7 +270,7 @@ Orbit.fromPositionAndVelocity = (referenceBody, position, velocity, t) ->
   
   specificAngularMomentum = crossProduct(position, velocity) # Eq. 5.21
   nodeVector = [-specificAngularMomentum[1], specificAngularMomentum[0], 0] # Eq. 5.22
-  nodeVector = numeric.divVS(nodeVector, numeric.norm2(nodeVector))
+  nodeVector = normalize(nodeVector)
   eccentricityVector = numeric.mulSV(1 / mu, numeric.subVV(numeric.mulSV(v*v - mu / r, position), numeric.mulSV(numeric.dot(position, velocity), velocity))) # Eq. 5.23
   
   semiMajorAxis = 1 / (2 / r - v * v / mu) # Eq. 5.24
@@ -315,12 +354,8 @@ transferVelocities = (mu, position1, position2, dt, longWay) ->
     p = p0
   else if t1 > dt
     p = p1
-  else loop
-    p = (p0 + p1) / 2
-    break if p == p0 or p == p1 # We have reached floating point resolution
-    t = gaussTimeOfFlight(mu, r1, r2, deltaNu, k, l, m, p)
-    break if Math.abs(1 - t / dt) < 1e-6 # Close enough
-    if t < dt then p1 = p else p0 = p
+  else 
+    p = binarySearch(p0, p1, dt, (p) -> gaussTimeOfFlight(mu, r1, r2, deltaNu, k, l, m, p))
   
   # The next four calculations are redundant with work done in gaussTimeOfFlight()
   a = m * k * p / ((2 * m -  l * l) * p * p + 2 * k * l * p - k * k) # Eq. 5.12
@@ -336,7 +371,7 @@ transferVelocities = (mu, position1, position2, dt, longWay) ->
 
 ejectionAngle = (asymptote, eccentricity, normal, prograde) ->
   e = eccentricity
-  [ax, ay, az] = numeric.divVS(asymptote, numeric.norm2(asymptote))
+  [ax, ay, az] = normalize(asymptote)
   [nx, ny, nz] = normal
   
   
@@ -375,17 +410,31 @@ ejectionAngle = (asymptote, eccentricity, normal, prograde) ->
   else
     Math.acos(numeric.dot([vx, vy, vz], prograde))
 
-Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody) ->
+Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, planeChangeAngleToIntercept) ->
   if transferType == "optimal"
     ballisticTransfer = Orbit.transfer("ballistic", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody)
-    return ballisticTransfer if ballisticTransfer.angle <= halfPi or ballisticTransfer.angle >= (twoPi - halfPi)
-    planeChangeTransfer = Orbit.transfer("planeChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody)
+    planeChangeTransfer = Orbit.transfer("optimalPlaneChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody)
     return if ballisticTransfer.deltaV < planeChangeTransfer.deltaV then ballisticTransfer else planeChangeTransfer
+  else if transferType == "optimalPlaneChange"
+    if numeric.norm2(p0) > numeric.norm2(p1)
+      # Transferring to a lower orbit, optimum time to change inclination is 90 degrees to intercept or sooner
+      x1 = halfPi
+      x2 = Math.PI
+    else
+      # Transferring to a higher orbit, the optimum time to change inclination is 90 degrees to intercept or later
+      x1 = 0
+      x2 = halfPi
+    
+    x = goldenSectionSearch x1, x2, (x) ->
+      Orbit.transfer("planeChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, x).deltaV
+    return Orbit.transfer("planeChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, x)
   else if transferType == "planeChange"
-    p1Direction = numeric.divVS(p1, numeric.norm2(p1))
-    planeChangeAngle = Math.asin(numeric.dot(p1Direction, n0))
+    planeChangeAngleToIntercept ?= halfPi
+    planeChangeAxis = normalize(projectToPlane(p1, n0))
+    planeChangeAxis = quaternion.rotate(quaternion.fromAngleAxis(-planeChangeAngleToIntercept, n0), planeChangeAxis)
+    p1PerpendicularToPlaneChangeAxis = normalize(projectToPlane(p1, planeChangeAxis))
+    planeChangeAngle = Math.asin(numeric.dot(p1PerpendicularToPlaneChangeAxis, n0))
     if planeChangeAngle != 0
-      planeChangeAxis = crossProduct(p1Direction, n0)
       planeChangeRotation = quaternion.fromAngleAxis(planeChangeAngle, planeChangeAxis)
       p1InOriginPlane= quaternion.rotate(quaternion.conjugate(planeChangeRotation), p1)
   
@@ -399,7 +448,7 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, i
     transferAngle = Math.acos(numeric.dot(p0, p1) / (numeric.norm2(p0) * numeric.norm2(p1)))
     transferAngle = twoPi - transferAngle if transfer == longTransfer
     
-    if !planeChangeAngle or transferAngle <= halfPi
+    if !planeChangeAngle or transferAngle <= planeChangeAngleToIntercept
       [ejectionVelocity, insertionVelocity] =
         transferVelocities(referenceBody.gravitationalParameter, p0, p1, dt, (transfer == longTransfer))
       planeChangeDeltaV = 0
@@ -408,7 +457,7 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, i
         transferVelocities(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt, (transfer == longTransfer))
       
       orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0)
-      planeChangeTrueAnomaly = orbit.trueAnomalyAt(t1) - halfPi
+      planeChangeTrueAnomaly = orbit.trueAnomalyAt(t1) - planeChangeAngleToIntercept
       planeChangeDeltaV = Math.abs(2 * orbit.speedAtTrueAnomaly(planeChangeTrueAnomaly) * Math.sin(planeChangeAngle / 2))
       planeChangeDeltaV = 0 if isNaN(planeChangeDeltaV)
       planeChangeTime = orbit.timeAtTrueAnomaly(planeChangeTrueAnomaly, t0)
@@ -435,6 +484,7 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, i
     transfer.ejectionDeltaVector = ejectionDeltaVector
     transfer.ejectionInclination = ejectionInclination
     transfer.ejectionDeltaV = ejectionDeltaV
+    transfer.planeChangeAngleToIntercept = planeChangeAngleToIntercept
     transfer.planeChangeDeltaV = planeChangeDeltaV
     transfer.planeChangeTime = planeChangeTime
     transfer.planeChangeAngle = if planeChangeTime? then planeChangeAngle else 0
@@ -451,7 +501,7 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, i
     r = mu / (initialOrbitalVelocity * initialOrbitalVelocity)
     v = initialOrbitalVelocity + transfer.ejectionDeltaV
     e = r * v * v / mu - 1 # Eq. 4.30 simplified for a flight path angle of 0
-    transfer.ejectionAngle = ejectionAngle(transfer.ejectionDeltaVector, e, n0, numeric.divVS(v0, numeric.norm2(v0)))
+    transfer.ejectionAngle = ejectionAngle(transfer.ejectionDeltaVector, e, n0, normalize(v0))
     
     transfer.orbit ?= Orbit.fromPositionAndVelocity(referenceBody, p0, transfer.ejectionVelocity, t0)
   
