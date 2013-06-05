@@ -65,9 +65,8 @@ HEIGHT = 300
       lastProgress = now
   
   try
+    # Try to use transferable objects first to save about 1 MB memcpy
     postMessage({ deltaVs: deltaVs.buffer, minDeltaV: minDeltaV, minDeltaVPoint: minDeltaVPoint, maxDeltaV: maxDeltaV }, [deltaVs.buffer])
   catch error
-    if error instanceof TypeError
-      postMessage({ deltaVs: deltaVs, minDeltaV: minDeltaV, minDeltaVPoint: minDeltaVPoint, maxDeltaV: maxDeltaV })
-    else
-      throw error
+    # Fallback to compatible version
+    postMessage({ deltaVs: deltaVs, minDeltaV: minDeltaV, minDeltaVPoint: minDeltaVPoint, maxDeltaV: maxDeltaV })

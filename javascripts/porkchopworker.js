@@ -80,16 +80,12 @@
         maxDeltaV: maxDeltaV
       }, [deltaVs.buffer]);
     } catch (error) {
-      if (error instanceof TypeError) {
-        return postMessage({
-          deltaVs: deltaVs,
-          minDeltaV: minDeltaV,
-          minDeltaVPoint: minDeltaVPoint,
-          maxDeltaV: maxDeltaV
-        });
-      } else {
-        throw error;
-      }
+      return postMessage({
+        deltaVs: deltaVs,
+        minDeltaV: minDeltaV,
+        minDeltaVPoint: minDeltaVPoint,
+        maxDeltaV: maxDeltaV
+      });
     }
   };
 
