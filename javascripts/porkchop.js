@@ -110,11 +110,11 @@
   };
 
   distanceString = function(d) {
-    if (d > 1e12) {
+    if (Math.abs(d) > 1e12) {
       return numberWithCommas((d / 1e9).toFixed()) + " Gm";
-    } else if (d >= 1e9) {
+    } else if (Math.abs(d) >= 1e9) {
       return numberWithCommas((d / 1e6).toFixed()) + " Mm";
-    } else if (d >= 1e6) {
+    } else if (Math.abs(d) >= 1e6) {
       return numberWithCommas((d / 1e3).toFixed()) + " km";
     } else {
       return numberWithCommas(d.toFixed()) + " m";

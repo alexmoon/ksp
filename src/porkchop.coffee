@@ -58,11 +58,11 @@ durationString = (t) ->
   result + hourMinSec(t)
 
 distanceString = (d) ->
-  if d > 1e12
+  if Math.abs(d) > 1e12
     numberWithCommas((d / 1e9).toFixed()) + " Gm"
-  else if d >= 1e9
+  else if Math.abs(d) >= 1e9
     numberWithCommas((d / 1e6).toFixed()) + " Mm"
-  else if d >= 1e6
+  else if Math.abs(d) >= 1e6
     numberWithCommas((d / 1e3).toFixed()) + " km"
   else
     numberWithCommas(d.toFixed()) + " m"
