@@ -318,6 +318,7 @@ $(document).ready ->
         selectedPoint = { x: x, y: y }
         drawPlot(selectedPoint)
         showTransferDetails()
+        ga('send', 'event', 'porkchop', 'click', "#{x},#{y}")
         
   $('#originSelect').change (event) ->
     origin = CelestialBody[$(this).val()]
@@ -401,3 +402,8 @@ $(document).ready ->
       initialOrbitalVelocity: initialOrbitalVelocity, finalOrbitalVelocity: finalOrbitalVelocity,
       earliestDeparture: earliestDeparture, xScale: xScale,
       earliestArrival: earliestArrival, yScale: yScale)
+
+    description = "#{originBodyName} @#{+initialOrbit}km to #{destinationBodyName}"
+    description += " @#{+finalOrbit}km" if finalOrbit
+    description += " after day #{earliestDeparture / (24 * 3600)} via #{$('#transferTypeSelect option:selected').text()} transfer"
+    ga('send', 'event', 'porkchop', 'submit', description)

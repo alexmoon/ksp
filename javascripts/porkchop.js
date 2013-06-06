@@ -386,7 +386,8 @@
             y: y
           };
           drawPlot(selectedPoint);
-          return showTransferDetails();
+          showTransferDetails();
+          return ga('send', 'event', 'porkchop', 'click', "" + x + "," + y);
         }
       }
     });
@@ -412,7 +413,7 @@
     $('#originSelect').change();
     $('#destinationSelect').val('Duna');
     return $('#porkchopForm').submit(function(event) {
-      var ctx, destinationBody, destinationBodyName, finalOrbit, hohmannTransfer, initialOrbit, originBodyName, scrollTop, _n, _o;
+      var ctx, description, destinationBody, destinationBodyName, finalOrbit, hohmannTransfer, initialOrbit, originBodyName, scrollTop, _n, _o;
       event.preventDefault();
       $('#porkchopSubmit').prop('disabled', true);
       scrollTop = $('#porkchopCanvas').offset().top + $('#porkchopCanvas').height() - $(window).height();
@@ -476,7 +477,7 @@
         ctx.fillText(((earliestDeparture + i * xScale) / 3600 / 24) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3);
       }
       deltaVs = null;
-      return worker.postMessage({
+      worker.postMessage({
         transferType: transferType,
         originOrbit: originOrbit,
         destinationOrbit: destinationOrbit,
@@ -487,6 +488,12 @@
         earliestArrival: earliestArrival,
         yScale: yScale
       });
+      description = "" + originBodyName + " @" + (+initialOrbit) + "km to " + destinationBodyName;
+      if (finalOrbit) {
+        description += " @" + (+finalOrbit) + "km";
+      }
+      description += " after day " + (earliestDeparture / (24 * 3600)) + " via " + ($('#transferTypeSelect option:selected').text()) + " transfer";
+      return ga('send', 'event', 'porkchop', 'submit', description);
     });
   });
 
