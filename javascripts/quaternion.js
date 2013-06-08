@@ -17,8 +17,8 @@ quaternion.conjugate = function(q) {
 };
 
 quaternion.normalize = function(q) {
-    var s = 1 / numeric.norm2(q);
-    return numeric.mulVS(q, s);
+    var s = numeric.norm2(q);
+    return numeric.divVS(q, s);
 };
 
 quaternion.concat = function(q0, q1) {

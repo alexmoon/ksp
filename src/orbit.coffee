@@ -1,7 +1,7 @@
 # Utility functions and constants
-twoPi = 2 * Math.PI
-halfPi = 0.5 * Math.PI
-goldenRatio = (1 + Math.sqrt(5)) / 2
+TWO_PI = 2 * Math.PI
+HALF_PI = 0.5 * Math.PI
+GOLDEN_RATIO = (1 + Math.sqrt(5)) / 2
 
 sinh = (angle) ->
   p = Math.exp(angle)
@@ -28,7 +28,7 @@ projectToPlane = (p, n) -> numeric.subVV(p, numeric.mulSV(numeric.dot(p, n), n))
 # Finds the minimum of f(x) between x1 and x2. Returns x.
 # See: http://en.wikipedia.org/wiki/Golden_section_search
 goldenSectionSearch = (x1, x2, f) ->
-  k = 2 - goldenRatio
+  k = 2 - GOLDEN_RATIO
   x3 = x2
   x2 = x1 + k * (x3 - x1)
   
@@ -59,6 +59,12 @@ binarySearch = (x1, x2, value, f) ->
     return x if Math.abs(1 - y / value) < 1e-6 # Close enough
     if y < value then x2 = x else x1 = x
 
+# Finds the root of f(x) near x0 given df(x) = f'(x)
+newtonsMethod = (x0, f, df) ->
+  loop
+    x = x0 - f(x0) / df(x0)
+    return x if isNaN(x) or Math.abs(x - x0) < 1e-6 # Close enough
+    x0 = x
 
 (exports ? this).Orbit = class Orbit
   constructor: (@referenceBody, @semiMajorAxis, @eccentricity, inclination,
@@ -98,7 +104,7 @@ binarySearch = (x1, x2, value, f) ->
     Math.sqrt(@referenceBody.gravitationalParameter / (a * a * a))
   
   period: ->
-    if @isHyperbolic() then Infinity else twoPi / @meanMotion()
+    if @isHyperbolic() then Infinity else TWO_PI / @meanMotion()
     
   rotationToReferenceFrame: ->
     axisOfInclination = [Math.cos(-@argumentOfPeriapsis), Math.sin(-@argumentOfPeriapsis), 0]
@@ -117,8 +123,8 @@ binarySearch = (x1, x2, value, f) ->
     r1 = numeric.norm2(p1)
     r2 = numeric.norm2(p2)
     phaseAngle = Math.acos(numeric.dot(p1, p2) / (r1 * r2))
-    phaseAngle = twoPi - phaseAngle if numeric.dot(crossProduct(p1, p2), n) < 0
-    phaseAngle = phaseAngle - twoPi if orbit.semiMajorAxis < @semiMajorAxis
+    phaseAngle = TWO_PI - phaseAngle if numeric.dot(crossProduct(p1, p2), n) < 0
+    phaseAngle = phaseAngle - TWO_PI if orbit.semiMajorAxis < @semiMajorAxis
     phaseAngle
     
   # Orbital state at time t
@@ -127,24 +133,20 @@ binarySearch = (x1, x2, value, f) ->
     if @isHyperbolic()
       (t - @timeOfPeriapsisPassage) * @meanMotion()
     else
-      (@meanAnomalyAtEpoch + @meanMotion() * (t % @period())) % twoPi
+      (@meanAnomalyAtEpoch + @meanMotion() * (t % @period())) % TWO_PI
   
   eccentricAnomalyAt: (t) ->
     e = @eccentricity
     M = @meanAnomalyAt(t)
     
     if @isHyperbolic()
-      H0 = M
-      loop
-        H = H0 + (M - e * sinh(H0) + H0) / (e * cosh(H0) - 1)
-        return H if isNaN(H) or Math.abs(H - H0) < 1e-6
-        H0 = H
+      newtonsMethod M,
+        (x) -> M - e * sinh(x) + x
+        (x) -> 1 - e * cosh(x)
     else
-      E0 = M
-      loop
-        E = M + e * Math.sin(E0)
-        return E if Math.abs(E - E0) < 1e-6
-        E0 = E
+      newtonsMethod M,
+        (x) -> M + e * Math.sin(x) - x
+        (x) -> e * Math.cos(x) - 1
   
   trueAnomalyAt: (t) ->
     e = @eccentricity
@@ -155,8 +157,8 @@ binarySearch = (x1, x2, value, f) ->
     else
       E = @eccentricAnomalyAt(t)
       tA = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2))
-      if tA < 0 then tA + twoPi else tA
-  
+      if tA < 0 then tA + TWO_PI else tA
+    
   # Orbital state at true anomaly
   
   eccentricAnomalyAtTrueAnomaly: (tA) ->
@@ -167,7 +169,7 @@ binarySearch = (x1, x2, value, f) ->
       if tA < 0 then -H else H
     else
       E = 2 * Math.atan(Math.tan(tA/2) / Math.sqrt((1 + e) / (1 - e)))
-      if E < 0 then E + twoPi else E
+      if E < 0 then E + TWO_PI else E
   
   meanAnomalyAtTrueAnomaly: (tA) ->
     e = @eccentricity
@@ -214,6 +216,10 @@ binarySearch = (x1, x2, value, f) ->
     vtA = h / r
     
     quaternion.rotate(@rotationToReferenceFrame(), [vr * cos - vtA * sin, vr * sin + vtA * cos, 0])
+  
+  trueAnomalyAtPosition: (p) ->
+    p = quaternion.rotate(quaternion.conjugate(@rotationToReferenceFrame()), p)
+    Math.atan2(p[1], p[0])
 
 
 Orbit.fromJSON = (json) ->
@@ -230,11 +236,13 @@ Orbit.fromApoapsisAndPeriapsis = (referenceBody, apoapsis, periapsis, inclinatio
   eccentricity = apoapsis / semiMajorAxis - 1
   new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch)
 
-Orbit.fromAltitudeAndVelocity = (referenceBody, altitude, speed, flightPathAngle, heading, latitude, longitude, t) ->
+Orbit.fromAltitudeAndSpeed = (referenceBody, altitude, speed, flightPathAngle, heading, latitude, longitude, t) ->
   # Convert to standard units
   radius = referenceBody.radius + altitude
   flightPathAngle = flightPathAngle * Math.PI / 180
   heading = heading * Math.PI / 180 if heading?
+  latitude = latitude * Math.PI / 180 if latitude?
+  longitude = longitude * Math.PI / 180 if longitude?
   
   mu = referenceBody.gravitationalParameter
   sinPhi= Math.sin(flightPathAngle)
@@ -247,18 +255,19 @@ Orbit.fromAltitudeAndVelocity = (referenceBody, altitude, speed, flightPathAngle
   
   e = eccentricity
   trueAnomaly = Math.acos((@semiMajorAxis * (1 - e * e) / radius - 1) / e)
-  trueAnomaly = twoPi - trueAnomaly if flightPathAngle < 0
+  trueAnomaly = TWO_PI - trueAnomaly if flightPathAngle < 0
   
   meanAnomaly = orbit.meanAnomalyAtTrueAnomaly(trueAnomaly)
   orbit.meanAnomalyAtEpoch = meanAnomaly - orbit.meanMotion() * (t % orbit.period())
   
   if heading? and latitude?
     orbit.inclination = Math.acos(Math.cos(latitude) * Math.sin(heading))
-    angleToAscendingNode = Math.atan(Math.tan(latitude) / Math.cos(heading))
-    orbit.argumentOfPeriapsis = angleToAscendingNode - trueAnomaly
+    orbitalAngleToAscendingNode = Math.atan2(Math.tan(latitude), Math.cos(heading))
+    orbit.argumentOfPeriapsis = orbitalAngleToAscendingNode - trueAnomaly
     
     if longitude?
-      false # TODO: calculate longitude of ascending node
+      equatorialAngleToAscendingNode = Math.atan2(Math.sin(latitude) * Math.sin(heading), Math.cos(heading))
+      orbit.longitudeOfAscendingNode = referenceBody.siderealTimeAt(longitude - equatorialAngleToAscendingNode, t)
   
   orbit
 
@@ -269,8 +278,10 @@ Orbit.fromPositionAndVelocity = (referenceBody, position, velocity, t) ->
   v = numeric.norm2(velocity)
   
   specificAngularMomentum = crossProduct(position, velocity) # Eq. 5.21
-  nodeVector = [-specificAngularMomentum[1], specificAngularMomentum[0], 0] # Eq. 5.22
-  nodeVector = normalize(nodeVector)
+  if specificAngularMomentum[0] != 0 or specificAngularMomentum[1] != 0
+    nodeVector = normalize([-specificAngularMomentum[1], specificAngularMomentum[0], 0]) # Eq. 5.22
+  else
+    nodeVector = [1, 0, 0]
   eccentricityVector = numeric.mulSV(1 / mu, numeric.subVV(numeric.mulSV(v*v - mu / r, position), numeric.mulSV(numeric.dot(position, velocity), velocity))) # Eq. 5.23
   
   semiMajorAxis = 1 / (2 / r - v * v / mu) # Eq. 5.24
@@ -283,9 +294,9 @@ Orbit.fromPositionAndVelocity = (referenceBody, position, velocity, t) ->
     orbit.longitudeOfAscendingNode = 0
   else
     orbit.longitudeOfAscendingNode = Math.acos(nodeVector[0]) # Eq. 5.27
-    orbit.longitudeOfAscendingNode = twoPi - orbit.longitudeOfAscendingNode if nodeVector[1] < 0
+    orbit.longitudeOfAscendingNode = TWO_PI - orbit.longitudeOfAscendingNode if nodeVector[1] < 0
     orbit.argumentOfPeriapsis = Math.acos(numeric.dot(nodeVector, eccentricityVector) / eccentricity) # Eq. 5.28
-    orbit.argumentOfPeriapsis = twoPi - orbit.argumentOfPeriapsis if eccentricityVector[2] < 0
+    orbit.argumentOfPeriapsis = TWO_PI - orbit.argumentOfPeriapsis if eccentricityVector[2] < 0
   
   trueAnomaly = Math.acos(numeric.dot(eccentricityVector, position) / (eccentricity * r)) # Eq. 5.29
   trueAnomaly = -trueAnomaly if numeric.dot(position, velocity) < 0
@@ -317,7 +328,7 @@ gaussTimeOfFlight = (mu, r1, r2, deltaNu, k, l, m, p) ->
   if a > 0
     dE = Math.acos(1 - r1 / a * (1 - f)) # Eq. 5.13
     sinDeltaE = -r1 * r2 * df / Math.sqrt(mu * a) # Eq. 5.14
-    dE = twoPi - dE if sinDeltaE < 0
+    dE = TWO_PI - dE if sinDeltaE < 0
     g + Math.sqrt(a * a * a / mu) * (dE - sinDeltaE) # Eq. 5.16
   else
     dF = acosh(1 - r1 / a * (1 - f)) # Eq. 5.15
@@ -329,7 +340,7 @@ transferVelocities = (mu, position1, position2, dt, longWay) ->
   r2 = numeric.norm2(position2)
   cosDeltaNu = numeric.dot(position1, position2) / (r1 * r2)
   deltaNu= Math.acos(cosDeltaNu)
-  deltaNu= twoPi - deltaNu if longWay
+  deltaNu= TWO_PI - deltaNu if longWay
   
   throw new Error("Unable find orbit between collinear points") if Math.abs(cosDeltaNu) == 1
   
@@ -406,37 +417,51 @@ ejectionAngle = (asymptote, eccentricity, normal, prograde) ->
     vz = -(vx * nx + vy * ny) / nz
   
   if numeric.dot(crossProduct([vx, vy, vz], prograde), normal) < 0
-    twoPi - Math.acos(numeric.dot([vx, vy, vz], prograde))
+    TWO_PI - Math.acos(numeric.dot([vx, vy, vz], prograde))
   else
     Math.acos(numeric.dot([vx, vy, vz], prograde))
 
 Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, planeChangeAngleToIntercept) ->
   if transferType == "optimal"
     ballisticTransfer = Orbit.transfer("ballistic", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody)
+    return ballisticTransfer if ballisticTransfer.angle <= HALF_PI
     planeChangeTransfer = Orbit.transfer("optimalPlaneChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody)
     return if ballisticTransfer.deltaV < planeChangeTransfer.deltaV then ballisticTransfer else planeChangeTransfer
   else if transferType == "optimalPlaneChange"
     if numeric.norm2(p0) > numeric.norm2(p1)
       # Transferring to a lower orbit, optimum time to change inclination is 90 degrees to intercept or sooner
-      x1 = halfPi
+      x1 = HALF_PI
       x2 = Math.PI
     else
       # Transferring to a higher orbit, the optimum time to change inclination is 90 degrees to intercept or later
       x1 = 0
-      x2 = halfPi
+      x2 = HALF_PI
     
+    # This calculates an approximation of the optimal angle to intercept to perform the plane change.
+    # The approximation does not take into account the change in the transfer orbit due to the change
+    # in the target position rotated into the origin plane as the plane change axis changes.
+    # This approximation should be valid so long as the transfer orbit's semi-major axis and eccentricity
+    # does not change significantly with the change in the plane change axis.
+    relativeInclination = Math.asin(numeric.dot(p1, n0) / numeric.norm2(p1))
+    planeChangeRotation = quaternion.fromAngleAxis(-relativeInclination, crossProduct(p1, n0))
+    p1InOriginPlane = quaternion.rotate(planeChangeRotation, p1)
+    v1InOriginPlane = quaternion.rotate(planeChangeRotation, v1)
+    ballisticTransfer = Orbit.transfer("ballistic", referenceBody, t0, p0, v0, n0, t1, p1InOriginPlane, v1InOriginPlane, n0, initialOrbitalVelocity, finalOrbitalVelocity, originBody)
+    orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ballisticTransfer.ejectionVelocity, t0)
+    trueAnomalyAtIntercept = orbit.trueAnomalyAtPosition(p1InOriginPlane)
     x = goldenSectionSearch x1, x2, (x) ->
-      Orbit.transfer("planeChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, x).deltaV
+      planeChangeAngle = Math.atan2(Math.tan(relativeInclination), Math.sin(x))
+      Math.abs(2 * orbit.speedAtTrueAnomaly(trueAnomalyAtIntercept - x) * Math.sin(planeChangeAngle / 2))
+    
     return Orbit.transfer("planeChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, x)
   else if transferType == "planeChange"
-    planeChangeAngleToIntercept ?= halfPi
-    planeChangeAxis = normalize(projectToPlane(p1, n0))
-    planeChangeAxis = quaternion.rotate(quaternion.fromAngleAxis(-planeChangeAngleToIntercept, n0), planeChangeAxis)
-    p1PerpendicularToPlaneChangeAxis = normalize(projectToPlane(p1, planeChangeAxis))
-    planeChangeAngle = Math.asin(numeric.dot(p1PerpendicularToPlaneChangeAxis, n0))
+    planeChangeAngleToIntercept ?= HALF_PI
+    relativeInclination = Math.asin(numeric.dot(p1, n0) / numeric.norm2(p1))
+    planeChangeAngle = Math.atan2(Math.tan(relativeInclination), Math.sin(planeChangeAngleToIntercept))
     if planeChangeAngle != 0
+      planeChangeAxis = quaternion.rotate(quaternion.fromAngleAxis(-planeChangeAngleToIntercept, n0), projectToPlane(p1, n0))
       planeChangeRotation = quaternion.fromAngleAxis(planeChangeAngle, planeChangeAxis)
-      p1InOriginPlane= quaternion.rotate(quaternion.conjugate(planeChangeRotation), p1)
+      p1InOriginPlane = quaternion.rotate(quaternion.conjugate(planeChangeRotation), p1)
   
   dt = t1 - t0
   
@@ -446,9 +471,9 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, i
   longTransfer = {}
   for transfer in [shortTransfer, longTransfer]
     transferAngle = Math.acos(numeric.dot(p0, p1) / (numeric.norm2(p0) * numeric.norm2(p1)))
-    transferAngle = twoPi - transferAngle if transfer == longTransfer
+    transferAngle = TWO_PI - transferAngle if transfer == longTransfer
     
-    if !planeChangeAngle or transferAngle <= planeChangeAngleToIntercept
+    if !planeChangeAngle or transferAngle <= HALF_PI
       [ejectionVelocity, insertionVelocity] =
         transferVelocities(referenceBody.gravitationalParameter, p0, p1, dt, (transfer == longTransfer))
       planeChangeDeltaV = 0
