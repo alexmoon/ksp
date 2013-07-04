@@ -75,7 +75,7 @@ findRoot = (a, b, relativeAccuracy, f, df, ddf) ->
   
 @lambert = (mu, pos1, pos2, dt) ->
   # Based on Sun, F.T. "On the Minium Time Trajectory and Multiple Solutions of Lambert's Problem"
-  # AAS/AIAA Astrodynamics Conference, Province Town, Massachusetts, AAS 79-164, June 25-27, 1979
+  # AAS/AIAA Astrodynamics Conference, Provincetown, Massachusetts, AAS 79-164, June 25-27, 1979
   r1 = numeric.norm2(pos1)
   r2 = numeric.norm2(pos2)
   
@@ -138,7 +138,9 @@ findRoot = (a, b, relativeAccuracy, f, df, ddf) ->
     else # Hyperbolic solution
       x1 = 1.0
       x2 = 2.0
-      x2 *= 2.0 until ftau(x2) < 0.0 # Exponential search to find our upper hyperbolic bound
+      until ftau(x2) < 0.0 # Exponential search to find our upper hyperbolic bound
+        x1 = x2
+        x2 *= 2.0 
     
     x = findRoot(x1, x2, 1e-4, ftau)
     y = fy(x)

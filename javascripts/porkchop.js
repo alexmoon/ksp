@@ -303,9 +303,15 @@
       v1 = destinationOrbit.velocityAtTrueAnomaly(trueAnomaly);
       n1 = destinationOrbit.normalVector();
       transfer = Orbit.transfer(transferType, originOrbit.referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody);
-      $('#departureTime').text(kerbalDateString(t0));
-      $('#arrivalTime').text(kerbalDateString(t1));
-      $('#timeOfFlight').text(durationString(t1 - t0));
+      $('#departureTime').text(kerbalDateString(t0)).attr({
+        title: "UT: " + (t0.toFixed()) + "s"
+      });
+      $('#arrivalTime').text(kerbalDateString(t1)).attr({
+        title: "UT: " + (t1.toFixed()) + "s"
+      });
+      $('#timeOfFlight').text(durationString(t1 - t0)).attr({
+        title: (t1 - t0).toFixed() + "s"
+      });
       $('#phaseAngle').text(angleString(originOrbit.phaseAngle(destinationOrbit, t0), 2));
       if (transfer.ejectionAngle != null) {
         $('.ejectionAngle').show();
@@ -322,6 +328,13 @@
         $('.ejectionAngle').hide();
       }
       $('#ejectionDeltaV').text(numberWithCommas(transfer.ejectionDeltaV.toFixed()) + " m/s");
+      if (Math.abs(transfer.ejectionNormalDeltaV) >= 0.01) {
+        $('#ejectionDeltaV').attr({
+          title: numberWithCommas(transfer.ejectionProgradeDeltaV.toFixed()) + " m/s prograde; " + numberWithCommas(transfer.ejectionNormalDeltaV.toFixed()) + " m/s normal"
+        });
+      } else {
+        $('#ejectionDeltaV').removeAttr('title');
+      }
       $('#transferPeriapsis').text(distanceString(transfer.orbit.periapsisAltitude()));
       $('#transferApoapsis').text(distanceString(transfer.orbit.apoapsisAltitude()));
       $('#transferInclination').text(angleString(transfer.orbit.inclination, 2));
@@ -329,7 +342,9 @@
       if (transfer.planeChangeTime != null) {
         $('.ballisticTransfer').hide();
         $('.planeChangeTransfer').show();
-        $('#planeChangeTime').text(kerbalDateString(transfer.planeChangeTime));
+        $('#planeChangeTime').text(kerbalDateString(transfer.planeChangeTime)).attr({
+          title: "UT: " + (transfer.planeChangeTime.toFixed()) + "s"
+        });
         $('#planeChangeAngleToIntercept').text(angleString(transfer.planeChangeAngleToIntercept, 2));
         $('#planeChangeAngle').text(angleString(transfer.planeChangeAngle, 2));
         $('#planeChangeDeltaV').text(numberWithCommas(transfer.planeChangeDeltaV.toFixed()) + " m/s");

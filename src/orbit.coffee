@@ -451,14 +451,16 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, i
     transfer.orbit ?= Orbit.fromPositionAndVelocity(referenceBody, p0, transfer.ejectionVelocity, t0)
     
     if initialOrbitalVelocity
+      # Ejection delta-v components
+      vinf = numeric.norm2(ejectionDeltaVector)
+      v1 = Math.sqrt(vinf * vinf + 2 * initialOrbitalVelocity * initialOrbitalVelocity) # Eq. 5.35
+      transfer.ejectionNormalDeltaV = v1 * Math.sin(ejectionInclination)
+      transfer.ejectionProgradeDeltaV = v1 * Math.cos(ejectionInclination) - initialOrbitalVelocity
+      
       # Ejection angle to prograde
       mu = originBody.gravitationalParameter
       r = mu / (initialOrbitalVelocity * initialOrbitalVelocity)
-      vinf = numeric.norm2(ejectionDeltaVector)
-      v = Math.sqrt(vinf * vinf + 2 * initialOrbitalVelocity * initialOrbitalVelocity) # Eq. 5.35
-      e = r * v * v / mu - 1 # Eq. 4.30 simplified for a flight path angle of 0
+      e = r * v1 * v1 / mu - 1 # Eq. 4.30 simplified for a flight path angle of 0
       transfer.ejectionAngle = ejectionAngle(ejectionDeltaVector, e, n0, normalize(v0))
   
   transfer
-  
-# Get universal time from altitude of two (or more) celestial bodies with eccentric orbits

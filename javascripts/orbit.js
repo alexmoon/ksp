@@ -467,7 +467,7 @@
   };
 
   Orbit.transfer = function(transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, planeChangeAngleToIntercept) {
-    var ballisticTransfer, dt, e, ejectionDeltaV, ejectionDeltaVector, ejectionInclination, ejectionVelocity, insertionDeltaV, insertionDeltaVector, insertionInclination, insertionVelocity, mu, orbit, p1InOriginPlane, planeChangeAngle, planeChangeAxis, planeChangeDeltaV, planeChangeRotation, planeChangeTime, planeChangeTransfer, planeChangeTrueAnomaly, r, relativeInclination, transfer, transferAngle, trueAnomalyAtIntercept, v, v1InOriginPlane, vinf, x, x1, x2, _ref, _ref1, _ref2;
+    var ballisticTransfer, dt, e, ejectionDeltaV, ejectionDeltaVector, ejectionInclination, ejectionVelocity, insertionDeltaV, insertionDeltaVector, insertionInclination, insertionVelocity, mu, orbit, p1InOriginPlane, planeChangeAngle, planeChangeAxis, planeChangeDeltaV, planeChangeRotation, planeChangeTime, planeChangeTransfer, planeChangeTrueAnomaly, r, relativeInclination, transfer, transferAngle, trueAnomalyAtIntercept, v1InOriginPlane, vinf, x, x1, x2, _ref, _ref1, _ref2;
     dt = t1 - t0;
     if (transferType === "optimal") {
       ballisticTransfer = Orbit.transfer("ballistic", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody);
@@ -567,11 +567,13 @@
         transfer.orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, transfer.ejectionVelocity, t0);
       }
       if (initialOrbitalVelocity) {
+        vinf = numeric.norm2(ejectionDeltaVector);
+        v1 = Math.sqrt(vinf * vinf + 2 * initialOrbitalVelocity * initialOrbitalVelocity);
+        transfer.ejectionNormalDeltaV = v1 * Math.sin(ejectionInclination);
+        transfer.ejectionProgradeDeltaV = v1 * Math.cos(ejectionInclination) - initialOrbitalVelocity;
         mu = originBody.gravitationalParameter;
         r = mu / (initialOrbitalVelocity * initialOrbitalVelocity);
-        vinf = numeric.norm2(ejectionDeltaVector);
-        v = Math.sqrt(vinf * vinf + 2 * initialOrbitalVelocity * initialOrbitalVelocity);
-        e = r * v * v / mu - 1;
+        e = r * v1 * v1 / mu - 1;
         transfer.ejectionAngle = ejectionAngle(ejectionDeltaVector, e, n0, normalize(v0));
       }
     }
