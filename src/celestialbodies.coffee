@@ -14,7 +14,7 @@ HALF_PI = 0.5 * Math.PI
     result = ((time / @siderealRotation) * TWO_PI + HALF_PI + longitude) % TWO_PI
     if result < 0 then result + TWO_PI else result
 
-CelestialBody.Kerbol = Kerbol = new CelestialBody(1.756567e+28, 2.616e+08, 0, null)
+CelestialBody.Kerbol = Kerbol = new CelestialBody(1.756567e+28, 2.616e+08, 432000, null)
 CelestialBody.Moho = Moho = new CelestialBody(3.6747079e21, 250000, 1210000, new Orbit(Kerbol, 5263138304, 0.2, 7.0, 70.0, 15.0, 3.14))
 CelestialBody.Eve = Eve = new CelestialBody(1.2244127e23, 700000, 80500, new Orbit(Kerbol, 9832684544, 0.01, 2.1, 15.0, 0, 3.14))
 CelestialBody.Gilly = Gilly = new CelestialBody(1.2420512e17, 13000, 28255, new Orbit(Eve, 31500000, 0.55, 12.0, 80.0, 10.0, 0.9))

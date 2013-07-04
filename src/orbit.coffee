@@ -50,15 +50,6 @@ goldenSectionSearch = (x1, x2, f) ->
     else
       if (x3 - x2) > (x2 - x1) then x3 = x else x1 = x
 
-# Finds x between x1 and x2 where f(x) == value
-binarySearch = (x1, x2, value, f) ->
-  loop
-    x = (x1 + x2) / 2
-    return x if x == x1 or x == x2 # Limits of binary precision
-    y = f(x)
-    return x if Math.abs(1 - y / value) < 1e-6 # Close enough
-    if y < value then x2 = x else x1 = x
-
 # Finds the root of f(x) near x0 given df(x) = f'(x)
 newtonsMethod = (x0, f, df) ->
   loop
@@ -254,7 +245,7 @@ Orbit.fromAltitudeAndSpeed = (referenceBody, altitude, speed, flightPathAngle, h
   orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity, 0, 0, 0, 0)
   
   e = eccentricity
-  trueAnomaly = Math.acos((@semiMajorAxis * (1 - e * e) / radius - 1) / e)
+  trueAnomaly = Math.acos((orbit.semiMajorAxis * (1 - e * e) / radius - 1) / e)
   trueAnomaly = TWO_PI - trueAnomaly if flightPathAngle < 0
   
   meanAnomaly = orbit.meanAnomalyAtTrueAnomaly(trueAnomaly)
@@ -308,7 +299,6 @@ Orbit.fromPositionAndVelocity = (referenceBody, position, velocity, t) ->
     orbit.meanAnomalyAtEpoch = meanAnomaly - orbit.meanMotion() * (t % orbit.period())
   
   orbit
-  
 
 Orbit.circularToHyperbolicDeltaV = circularToHyperbolicDeltaV = (v0, vinf, relativeInclination) ->
   v1 = Math.sqrt(vinf * vinf + 2 * v0 * v0) # Eq. 5.35
@@ -317,69 +307,6 @@ Orbit.circularToHyperbolicDeltaV = circularToHyperbolicDeltaV = (v0, vinf, relat
   else
     v1 - v0 # Eq. 5.36
   
-gaussTimeOfFlight = (mu, r1, r2, deltaNu, k, l, m, p) ->
-  # From: http://www.braeunig.us/space/interpl.htm#gauss
-  a = m * k * p / ((2 * m -  l * l) * p * p + 2 * k * l * p - k * k) # Eq. 5.12
-  
-  f = 1 - r2 / p * (1 - Math.cos(deltaNu)) # Eq. 5.5
-  g = r1 * r2 * Math.sin(deltaNu) / Math.sqrt(mu * p) # Eq. 5.6
-  df = Math.sqrt(mu / p) * Math.tan(deltaNu / 2) * ((1 - Math.cos(deltaNu)) / p - 1 / r1 - 1 / r2) # Eq. 5.7
-  
-  if a > 0
-    dE = Math.acos(1 - r1 / a * (1 - f)) # Eq. 5.13
-    sinDeltaE = -r1 * r2 * df / Math.sqrt(mu * a) # Eq. 5.14
-    dE = TWO_PI - dE if sinDeltaE < 0
-    g + Math.sqrt(a * a * a / mu) * (dE - sinDeltaE) # Eq. 5.16
-  else
-    dF = acosh(1 - r1 / a * (1 - f)) # Eq. 5.15
-    g + Math.sqrt(-a * a * a / mu) * (sinh(dF) - dF) # Eq. 5.17
-
-transferVelocities = (mu, position1, position2, dt, longWay) ->
-  # From: http://www.braeunig.us/space/interpl.htm#gauss
-  r1 = numeric.norm2(position1)
-  r2 = numeric.norm2(position2)
-  cosDeltaNu = numeric.dot(position1, position2) / (r1 * r2)
-  deltaNu= Math.acos(cosDeltaNu)
-  deltaNu= TWO_PI - deltaNu if longWay
-  
-  throw new Error("Unable find orbit between collinear points") if Math.abs(cosDeltaNu) == 1
-  
-  k = r1 * r2 * (1 - cosDeltaNu) # Eq. 5.9
-  l = r1 + r2 # Eq. 5.10
-  m = r1 * r2 * (1 + cosDeltaNu) # Eq. 5.11
-  
-  # TODO: Use smart initial guess with fallback to safe case
-  if longWay
-    p0 = k / (l - Math.sqrt(2 * m)) # Eq.5.19
-    p1 = p0 * 1e-3 # This factor seems to work for all reasonable transfer orbits, extreme transfers may fail
-    p0 *= 0.999999 # Avoid floating point errors
-  else
-    p0 = k / (l + Math.sqrt(2 * m)) # Eq. 5.18
-    p1 = p0 * 1e3 # This factor seems to work for all reasonable transfer orbits, extreme transfers may fail
-    p0 *= 1.000001 # Avoid floating point errors
-  
-  t0 = gaussTimeOfFlight(mu, r1, r2, deltaNu, k, l, m, p0)
-  t1 = gaussTimeOfFlight(mu, r1, r2, deltaNu, k, l, m, p1)
-  
-  if t0 < dt
-    p = p0
-  else if t1 > dt
-    p = p1
-  else 
-    p = binarySearch(p0, p1, dt, (p) -> gaussTimeOfFlight(mu, r1, r2, deltaNu, k, l, m, p))
-  
-  # The next four calculations are redundant with work done in gaussTimeOfFlight()
-  a = m * k * p / ((2 * m -  l * l) * p * p + 2 * k * l * p - k * k) # Eq. 5.12
-  f = 1 - r2 / p * (1 - cosDeltaNu) # Eq. 5.5
-  g = r1 * r2 * Math.sin(deltaNu) / Math.sqrt(mu * p) # Eq. 5.6
-  df = Math.sqrt(mu / p) * Math.tan(deltaNu / 2) * ((1 - cosDeltaNu) / p - 1 / r1 - 1 / r2) # Eq. 5.7
-  dg = 1 - r1 / p * (1 - cosDeltaNu) # Eq. 5.8
-  
-  v1 = numeric.mulVS(numeric.subVV(position2, numeric.mulVS(position1, f)), 1 / g) # Eq. 5.3
-  v2 = numeric.addVV(numeric.mulVS(position1, df), numeric.mulVS(v1, dg)) # Eq. 5.4
-  
-  [v1, v2]
-
 ejectionAngle = (asymptote, eccentricity, normal, prograde) ->
   e = eccentricity
   [ax, ay, az] = normalize(asymptote)
@@ -406,13 +333,19 @@ ejectionAngle = (asymptote, eccentricity, normal, prograde) ->
   b = -2 * (g * (ny * ny + nz * nz) + nx * ny) / (e * f * nz * nz)
   c = (nz * nz + ny * ny) / (e * e * f * f * nz * nz) - 1
   
+  # Quadratic formula without loss of significance (Numerical Recipes eq. 5.6.4)
+  if b < 0
+    q = -0.5 * (b - Math.sqrt(b * b - 4 * a * c))
+  else
+    q = -0.5 * (b + Math.sqrt(b * b - 4 * a * c))
+    
   # Solution
-  vx = (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a)
+  vx = q / a
   vy = g * vx - 1 / (e * f)
   vz = -(vx * nx + vy * ny) / nz
   
   if numeric.dot(crossProduct([vx, vy, vz], [ax, ay, az]), normal) < 0 # Wrong orbital direction
-    vx = (-b - Math.sqrt(b * b - 4 * a * c)) / (2 * a)
+    vx = c / q
     vy = g * vx - 1 / (e * f)
     vz = -(vx * nx + vy * ny) / nz
   
@@ -422,6 +355,8 @@ ejectionAngle = (asymptote, eccentricity, normal, prograde) ->
     Math.acos(numeric.dot([vx, vy, vz], prograde))
 
 Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, planeChangeAngleToIntercept) ->
+  dt = t1 - t0
+
   if transferType == "optimal"
     ballisticTransfer = Orbit.transfer("ballistic", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody)
     return ballisticTransfer if ballisticTransfer.angle <= HALF_PI
@@ -446,13 +381,13 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, i
     planeChangeRotation = quaternion.fromAngleAxis(-relativeInclination, crossProduct(p1, n0))
     p1InOriginPlane = quaternion.rotate(planeChangeRotation, p1)
     v1InOriginPlane = quaternion.rotate(planeChangeRotation, v1)
-    ballisticTransfer = Orbit.transfer("ballistic", referenceBody, t0, p0, v0, n0, t1, p1InOriginPlane, v1InOriginPlane, n0, initialOrbitalVelocity, finalOrbitalVelocity, originBody)
-    orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ballisticTransfer.ejectionVelocity, t0)
+    ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0]
+    orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0)
     trueAnomalyAtIntercept = orbit.trueAnomalyAtPosition(p1InOriginPlane)
     x = goldenSectionSearch x1, x2, (x) ->
       planeChangeAngle = Math.atan2(Math.tan(relativeInclination), Math.sin(x))
-      Math.abs(2 * orbit.speedAtTrueAnomaly(trueAnomalyAtIntercept - x) * Math.sin(planeChangeAngle / 2))
-    
+      Math.abs(2 * orbit.speedAtTrueAnomaly(trueAnomalyAtIntercept - x) * Math.sin(0.5 * planeChangeAngle))
+
     return Orbit.transfer("planeChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, x)
   else if transferType == "planeChange"
     planeChangeAngleToIntercept ?= HALF_PI
@@ -463,74 +398,67 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, i
       planeChangeRotation = quaternion.fromAngleAxis(planeChangeAngle, planeChangeAxis)
       p1InOriginPlane = quaternion.rotate(quaternion.conjugate(planeChangeRotation), p1)
   
-  dt = t1 - t0
+  transfer = {}
   
-  # TODO: Use heuristic so we don't have to calculate both transfer directions
-  # (e.g. if angle is < 170 or > 190 then only go clockwise)
-  shortTransfer = {}
-  longTransfer = {}
-  for transfer in [shortTransfer, longTransfer]
-    transferAngle = Math.acos(numeric.dot(p0, p1) / (numeric.norm2(p0) * numeric.norm2(p1)))
-    transferAngle = TWO_PI - transferAngle if transfer == longTransfer
-    
-    if !planeChangeAngle or transferAngle <= HALF_PI
-      [ejectionVelocity, insertionVelocity] =
-        transferVelocities(referenceBody.gravitationalParameter, p0, p1, dt, (transfer == longTransfer))
-      planeChangeDeltaV = 0
-    else
-      [ejectionVelocity, insertionVelocity] =
-        transferVelocities(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt, (transfer == longTransfer))
-      
-      orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0)
-      planeChangeTrueAnomaly = orbit.trueAnomalyAt(t1) - planeChangeAngleToIntercept
-      planeChangeDeltaV = Math.abs(2 * orbit.speedAtTrueAnomaly(planeChangeTrueAnomaly) * Math.sin(planeChangeAngle / 2))
-      planeChangeDeltaV = 0 if isNaN(planeChangeDeltaV)
-      planeChangeTime = orbit.timeAtTrueAnomaly(planeChangeTrueAnomaly, t0)
-      insertionVelocity = quaternion.rotate(planeChangeRotation, insertionVelocity)
-    
-    ejectionDeltaVector = numeric.subVV(ejectionVelocity, v0)
-    ejectionDeltaV = numeric.norm2(ejectionDeltaVector) # This is actually the hyperbolic excess velocity if ejecting from a parking orbit
-    ejectionInclination = Math.asin(numeric.dot(ejectionDeltaVector, n0) / ejectionDeltaV)
-    if initialOrbitalVelocity
-      ejectionDeltaV = circularToHyperbolicDeltaV(initialOrbitalVelocity, ejectionDeltaV, ejectionInclination)
-    
-    if finalOrbitalVelocity?
-      insertionDeltaVector = numeric.subVV(insertionVelocity, v1)
-      insertionDeltaV = numeric.norm2(insertionDeltaVector) # This is actually the hyperbolic excess velocity if inserting into a parking orbit
-      insertionInclination = Math.asin(numeric.dot(insertionDeltaVector, n1) / insertionDeltaV)
-      if finalOrbitalVelocity
-        insertionDeltaV = circularToHyperbolicDeltaV(finalOrbitalVelocity, insertionDeltaV, 0)
-    else
-      insertionDeltaV = 0
-    
-    transfer.angle = transferAngle
-    transfer.orbit = orbit
-    transfer.ejectionVelocity = ejectionVelocity
-    transfer.ejectionDeltaVector = ejectionDeltaVector
-    transfer.ejectionInclination = ejectionInclination
-    transfer.ejectionDeltaV = ejectionDeltaV
-    transfer.planeChangeAngleToIntercept = planeChangeAngleToIntercept
-    transfer.planeChangeDeltaV = planeChangeDeltaV
-    transfer.planeChangeTime = planeChangeTime
-    transfer.planeChangeAngle = if planeChangeTime? then planeChangeAngle else 0
-    transfer.insertionVelocity = insertionVelocity
-    transfer.insertionInclination = insertionInclination
-    transfer.insertionDeltaV = insertionDeltaV
-    transfer.deltaV = ejectionDeltaV + planeChangeDeltaV + insertionDeltaV
-      
-  transfer = if shortTransfer.deltaV < longTransfer.deltaV then shortTransfer else longTransfer
+  # Assume a counter-clockwise transfer around the +z axis
+  transferAngle = Math.acos(numeric.dot(p0, p1) / (numeric.norm2(p0) * numeric.norm2(p1)))
+  transferAngle = TWO_PI - transferAngle if p0[0] * p1[1] - p0[1] * p1[0] < 0 # (p0 x p1).z
+
+  if !planeChangeAngle or transferAngle <= HALF_PI
+    [ejectionVelocity, insertionVelocity] = lambert(referenceBody.gravitationalParameter, p0, p1, dt)
+    planeChangeDeltaV = 0
+  else
+    [ejectionVelocity, insertionVelocity] = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)
+
+    orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0)
+    planeChangeTrueAnomaly = orbit.trueAnomalyAt(t1) - planeChangeAngleToIntercept
+    planeChangeDeltaV = Math.abs(2 * orbit.speedAtTrueAnomaly(planeChangeTrueAnomaly) * Math.sin(planeChangeAngle / 2))
+    planeChangeDeltaV = 0 if isNaN(planeChangeDeltaV)
+    planeChangeTime = orbit.timeAtTrueAnomaly(planeChangeTrueAnomaly, t0)
+    insertionVelocity = quaternion.rotate(planeChangeRotation, insertionVelocity)
   
+  ejectionDeltaVector = numeric.subVV(ejectionVelocity, v0)
+  ejectionDeltaV = numeric.norm2(ejectionDeltaVector) # This is actually the hyperbolic excess velocity if ejecting from a parking orbit
+  ejectionInclination = Math.asin(numeric.dot(ejectionDeltaVector, n0) / ejectionDeltaV)
+  if initialOrbitalVelocity
+    ejectionDeltaV = circularToHyperbolicDeltaV(initialOrbitalVelocity, ejectionDeltaV, ejectionInclination)
+
+  if finalOrbitalVelocity?
+    insertionDeltaVector = numeric.subVV(insertionVelocity, v1)
+    insertionDeltaV = numeric.norm2(insertionDeltaVector) # This is actually the hyperbolic excess velocity if inserting into a parking orbit
+    insertionInclination = Math.asin(numeric.dot(insertionDeltaVector, n1) / insertionDeltaV)
+    if finalOrbitalVelocity
+      insertionDeltaV = circularToHyperbolicDeltaV(finalOrbitalVelocity, insertionDeltaV, 0)
+  else
+    insertionDeltaV = 0
+
+  transfer.angle = transferAngle
+  transfer.orbit = orbit
+  transfer.ejectionVelocity = ejectionVelocity
+  transfer.ejectionDeltaVector = ejectionDeltaVector
+  transfer.ejectionInclination = ejectionInclination
+  transfer.ejectionDeltaV = ejectionDeltaV
+  transfer.planeChangeAngleToIntercept = planeChangeAngleToIntercept
+  transfer.planeChangeDeltaV = planeChangeDeltaV
+  transfer.planeChangeTime = planeChangeTime
+  transfer.planeChangeAngle = if planeChangeTime? then planeChangeAngle else 0
+  transfer.insertionVelocity = insertionVelocity
+  transfer.insertionInclination = insertionInclination
+  transfer.insertionDeltaV = insertionDeltaV
+  transfer.deltaV = ejectionDeltaV + planeChangeDeltaV + insertionDeltaV
+
   if originBody # We calculate more details of the transfer if an originBody is provided
-    # Ejection angle to prograde
-    mu = originBody.gravitationalParameter
-    r = mu / (initialOrbitalVelocity * initialOrbitalVelocity)
-    v = initialOrbitalVelocity + transfer.ejectionDeltaV
-    e = r * v * v / mu - 1 # Eq. 4.30 simplified for a flight path angle of 0
-    transfer.ejectionAngle = ejectionAngle(transfer.ejectionDeltaVector, e, n0, normalize(v0))
-    
     transfer.orbit ?= Orbit.fromPositionAndVelocity(referenceBody, p0, transfer.ejectionVelocity, t0)
+    
+    if initialOrbitalVelocity
+      # Ejection angle to prograde
+      mu = originBody.gravitationalParameter
+      r = mu / (initialOrbitalVelocity * initialOrbitalVelocity)
+      vinf = numeric.norm2(ejectionDeltaVector)
+      v = Math.sqrt(vinf * vinf + 2 * initialOrbitalVelocity * initialOrbitalVelocity) # Eq. 5.35
+      e = r * v * v / mu - 1 # Eq. 4.30 simplified for a flight path angle of 0
+      transfer.ejectionAngle = ejectionAngle(ejectionDeltaVector, e, n0, normalize(v0))
   
   transfer
   
 # Get universal time from altitude of two (or more) celestial bodies with eccentric orbits
-# Create porkchop plot for interplanetary transfers

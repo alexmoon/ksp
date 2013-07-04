@@ -253,12 +253,16 @@ showTransferDetails = ->
     $('#arrivalTime').text(kerbalDateString(t1))
     $('#timeOfFlight').text(durationString(t1 - t0))
     $('#phaseAngle').text(angleString(originOrbit.phaseAngle(destinationOrbit, t0), 2))
-    if destinationOrbit.semiMajorAxis < originOrbit.semiMajorAxis
-      ejectionAngle = transfer.ejectionAngle - Math.PI
-      ejectionAngle += 2 * Math.PI if ejectionAngle < 0
-      $('#ejectionAngle').text(angleString(ejectionAngle) + " to retrograde")
+    if transfer.ejectionAngle?
+      $('.ejectionAngle').show()
+      if destinationOrbit.semiMajorAxis < originOrbit.semiMajorAxis
+        ejectionAngle = transfer.ejectionAngle - Math.PI
+        ejectionAngle += 2 * Math.PI if ejectionAngle < 0
+        $('#ejectionAngle').text(angleString(ejectionAngle) + " to retrograde")
+      else
+        $('#ejectionAngle').text(angleString(transfer.ejectionAngle) + " to prograde")
     else
-      $('#ejectionAngle').text(angleString(transfer.ejectionAngle) + " to prograde")
+      $('.ejectionAngle').hide()
     $('#ejectionDeltaV').text(numberWithCommas(transfer.ejectionDeltaV.toFixed()) + " m/s")
     $('#transferPeriapsis').text(distanceString(transfer.orbit.periapsisAltitude()))
     $('#transferApoapsis').text(distanceString(transfer.orbit.apoapsisAltitude()))

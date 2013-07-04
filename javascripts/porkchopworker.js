@@ -6,6 +6,8 @@
 
   importScripts('quaternion.js');
 
+  importScripts('lambert.js');
+
   importScripts('orbit.js');
 
   WIDTH = 300;

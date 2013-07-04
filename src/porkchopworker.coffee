@@ -1,5 +1,6 @@
 importScripts('numeric-1.2.6.min.js')
 importScripts('quaternion.js')
+importScripts('lambert.js')
 importScripts('orbit.js')
 
 WIDTH = 300
