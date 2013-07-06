@@ -309,7 +309,9 @@ updateAdvancedControls = ->
   hohmannTransferTime = hohmannTransfer.period() / 2
   synodicPeriod = Math.abs(1 / (1 / destination.orbit.period() - 1 / origin.orbit.period()))
   
-  maxDeparture = Math.min(2 * synodicPeriod, 2 * origin.orbit.period())
+  minDeparture = ($('#earliestDepartureYear').val() - 1) * 365 + ($('#earliestDepartureDay').val() - 1)
+  minDeparture *= 24 * 3600
+  maxDeparture = minDeparture + Math.min(2 * synodicPeriod, 2 * origin.orbit.period())
   minDays = Math.max(hohmannTransferTime - destination.orbit.period(), hohmannTransferTime / 2) / 3600 / 24
   maxDays = minDays + Math.min(2 * destination.orbit.period(), hohmannTransferTime) / 3600 / 24
   minDays = if minDays < 10 then minDays.toFixed(2) else minDays.toFixed()
@@ -378,7 +380,18 @@ $(document).ready ->
     else
       $(this).text('Show advanced settings...')
       $('#advancedControls').slideUp()
-      
+  
+  $('#earliestDepartureYear,#earliestDepartureDay').change (event) ->
+    if $('#showAdvancedControls').text().indexOf('Show') != -1
+      updateAdvancedControls()
+    else
+      if +$('#earliestDepartureYear').val() > +$('#latestDepartureYear').val()
+        $('#latestDepartureYear').val($('#earliestDepartureYear').val())
+        
+      if +$('#earliestDepartureYear').val() == +$('#latestDepartureYear').val()
+        if +$('#earliestDepartureDay').val() >= +$('#latestDepartureDay').val()
+          $('#latestDepartureDay').val(+$('#earliestDepartureDay').val() + 1)
+  
   $('#porkchopForm').submit (event) ->
     event.preventDefault()
     $('#porkchopSubmit').prop('disabled', true)
