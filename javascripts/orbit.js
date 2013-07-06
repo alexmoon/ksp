@@ -580,4 +580,39 @@
     return transfer;
   };
 
+  Orbit.courseCorrection = function(transferOrbit, destinationOrbit, burnTime, eta) {
+    var burnDirection, correctedVelocity, deltaV, deltaVector, heading, mu, n0, n1, p0, pitch, positionDirection, t1, t1Max, t1Min, trueAnomaly, v0, velocityForArrivalAt;
+    mu = transferOrbit.referenceBody.gravitationalParameter;
+    trueAnomaly = transferOrbit.trueAnomalyAt(burnTime);
+    p0 = transferOrbit.positionAtTrueAnomaly(trueAnomaly);
+    v0 = transferOrbit.velocityAtTrueAnomaly(trueAnomaly);
+    n0 = transferOrbit.normalVector();
+    n1 = destinationOrbit.normalVector();
+    velocityForArrivalAt = function(t1) {
+      var longWay, p1;
+      p1 = destinationOrbit.positionAtTrueAnomaly(destinationOrbit.trueAnomalyAt(t1));
+      longWay = numeric.dot(crossProduct(p0, projectToPlane(p1, n0)), n0) < 0;
+      return lambert(mu, p0, p1, t1 - burnTime)[0];
+    };
+    t1Min = Math.max(eta - (eta - burnTime) * 0.2, burnTime + 3600);
+    t1Max = eta + (eta - burnTime) * 0.2;
+    t1 = goldenSectionSearch(t1Min, t1Max, function(t1) {
+      return numeric.norm2(numeric.subVV(velocityForArrivalAt(t1), v0));
+    });
+    correctedVelocity = velocityForArrivalAt(t1);
+    deltaVector = numeric.subVV(correctedVelocity, v0);
+    deltaV = numeric.norm2(deltaVector);
+    burnDirection = numeric.divVS(deltaVector, deltaV);
+    positionDirection = numeric.divVS(p0, numeric.norm2(p0));
+    pitch = Math.asin(numeric.dot(burnDirection, positionDirection));
+    heading = Math.acos(burnDirection[2]);
+    return {
+      correctedVelocity: correctedVelocity,
+      deltaVector: deltaVector,
+      deltaV: deltaV,
+      pitch: pitch,
+      heading: heading
+    };
+  };
+
 }).call(this);

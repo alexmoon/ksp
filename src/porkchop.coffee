@@ -10,7 +10,7 @@ destinationOrbit = null
 initialOrbitalVelocity = null
 finalOrbitalVelocity = null
 earliestDeparture = null
-earliestArrival = null
+shortestTimeOfFlight = null
 xScale = null
 yScale = null
 deltaVs = null
@@ -211,7 +211,7 @@ prepareCanvas = ->
   ctx.save()
   ctx.rotate(-Math.PI / 2)
   ctx.textBaseline = 'top'
-  ctx.fillText("Arrival Date (days from epoch)", -PLOT_HEIGHT / 2, 0)
+  ctx.fillText("Time of Flight (days)", -PLOT_HEIGHT / 2, 0)
   ctx.restore()
   
   # Draw palette key
@@ -235,7 +235,7 @@ showTransferDetails = ->
     [x, y] = [selectedPoint.x, selectedPoint.y]
     
     t0 = earliestDeparture + x * xScale / PLOT_WIDTH
-    t1 = earliestArrival + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
+    t1 = t0 + shortestTimeOfFlight + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
   
     trueAnomaly = originOrbit.trueAnomalyAt(t0)
     p0 = originOrbit.positionAtTrueAnomaly(trueAnomaly)
@@ -300,7 +300,26 @@ showTransferDetails = ->
     $('#transferDetails:hidden').fadeIn()
   else
     $('#transferDetails:visible').fadeOut()
+
+updateAdvancedControls = ->
+  origin = CelestialBody[$('#originSelect').val()]
+  destination = CelestialBody[$('#destinationSelect').val()]
+  referenceBody = origin.orbit.referenceBody
+  hohmannTransfer = Orbit.fromApoapsisAndPeriapsis(referenceBody, destination.orbit.semiMajorAxis, origin.orbit.semiMajorAxis, 0, 0, 0, 0)
+  hohmannTransferTime = hohmannTransfer.period() / 2
+  synodicPeriod = Math.abs(1 / (1 / destination.orbit.period() - 1 / origin.orbit.period()))
   
+  maxDeparture = Math.min(2 * synodicPeriod, 2 * origin.orbit.period())
+  minDays = Math.max(hohmannTransferTime - destination.orbit.period(), hohmannTransferTime / 2) / 3600 / 24
+  maxDays = minDays + Math.min(2 * destination.orbit.period(), hohmannTransferTime) / 3600 / 24
+  minDays = if minDays < 10 then minDays.toFixed(2) else minDays.toFixed()
+  maxDays = if maxDays < 10 then maxDays.toFixed(2) else maxDays.toFixed()
+  
+  $('#latestDepartureYear').val(maxDeparture / 3600 / 24 / 365 | 0 + 1)
+  $('#latestDepartureDay').val(maxDeparture / 3600 / 24 % 365 | 0 + 1)
+  $('#shortestTimeOfFlight').val(minDays)
+  $('#longestTimeOfFlight').val(maxDays)
+
 $(document).ready ->
   canvasContext = $('#porkchopCanvas')[0].getContext('2d')
   plotImageData = canvasContext.createImageData(PLOT_WIDTH, PLOT_HEIGHT)
@@ -341,10 +360,25 @@ $(document).ready ->
     s.val(previousDestination)
     s.val($('option:first', s).val()) unless s.val()?
     s.prop('disabled', s[0].childNodes.length == 0)
+    
+    updateAdvancedControls()
   
+  $('#destinationSelect').change (event) ->
+    updateAdvancedControls()
+    
   $('#originSelect').change()
   $('#destinationSelect').val('Duna')
+  $('#destinationSelect').change()
   
+  $('#showAdvancedControls').click (event) ->
+    $this = $(this)
+    if $this.text().indexOf('Show') != -1
+      $this.text('Hide advanced settings...')
+      $('#advancedControls').slideDown()
+    else
+      $(this).text('Show advanced settings...')
+      $('#advancedControls').slideUp()
+      
   $('#porkchopForm').submit (event) ->
     event.preventDefault()
     $('#porkchopSubmit').prop('disabled', true)
@@ -376,18 +410,16 @@ $(document).ready ->
     
     earliestDeparture = ($('#earliestDepartureYear').val() - 1) * 365 + ($('#earliestDepartureDay').val() - 1)
     earliestDeparture *= 24 * 3600
-    earliestArrival = ($('#earliestArrivalYear').val() - 1) * 365 + ($('#earliestArrivalDay').val() - 1)
-    earliestArrival *= 24 * 3600
+    
+    latestDeparture = ($('#latestDepartureYear').val() - 1) * 365 + ($('#latestDepartureDay').val() - 1)
+    latestDeparture *= 24 * 3600
+    xScale = latestDeparture - earliestDeparture
+    
+    shortestTimeOfFlight = +$('#shortestTimeOfFlight').val() * 24 * 3600
+    yScale = +$('#longestTimeOfFlight').val() * 24 * 3600 - shortestTimeOfFlight
     
     originOrbit = originBody.orbit
     destinationOrbit = destinationBody.orbit
-    hohmannTransfer = Orbit.fromApoapsisAndPeriapsis(originOrbit.referenceBody, destinationOrbit.semiMajorAxis, originOrbit.semiMajorAxis, 0, 0, 0, 0)
-    earliestArrival = earliestDeparture + hohmannTransfer.period() / 4
-    xScale = 2 * Math.min(originOrbit.period(), destinationOrbit.period())
-    if destinationOrbit.semiMajorAxis < originOrbit.semiMajorAxis
-      yScale = 2 * destinationOrbit.period()
-    else
-      yScale = hohmannTransfer.period()
     
     ctx = canvasContext
     ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT)
@@ -401,7 +433,7 @@ $(document).ready ->
     ctx.textBaseline = 'middle'
     for i in [0..1.0] by 0.25
       ctx.textBaseline = 'top' if i == 1.0
-      ctx.fillText(((earliestArrival + i * yScale) / 3600 / 24) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT)
+      ctx.fillText(((shortestTimeOfFlight + i * yScale) / 3600 / 24) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT)
     ctx.textAlign = 'center'
     for i in [0..1.0] by 0.25
       ctx.fillText(((earliestDeparture + i * xScale) / 3600 / 24) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3)
@@ -411,7 +443,7 @@ $(document).ready ->
       transferType: transferType, originOrbit: originOrbit, destinationOrbit: destinationOrbit,
       initialOrbitalVelocity: initialOrbitalVelocity, finalOrbitalVelocity: finalOrbitalVelocity,
       earliestDeparture: earliestDeparture, xScale: xScale,
-      earliestArrival: earliestArrival, yScale: yScale)
+      shortestTimeOfFlight: shortestTimeOfFlight, yScale: yScale)
 
     description = "#{originBodyName} @#{+initialOrbit}km to #{destinationBodyName}"
     description += " @#{+finalOrbit}km" if finalOrbit

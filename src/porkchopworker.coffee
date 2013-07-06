@@ -13,7 +13,7 @@ HEIGHT = 300
   destinationOrbit = Orbit.fromJSON(event.data.destinationOrbit)
   finalOrbitalVelocity = event.data.finalOrbitalVelocity
   earliestDeparture = event.data.earliestDeparture
-  earliestArrival = event.data.earliestArrival
+  shortestTimeOfFlight = event.data.shortestTimeOfFlight
   xResolution = event.data.xScale / WIDTH
   yResolution = event.data.yScale / HEIGHT
   referenceBody = originOrbit.referenceBody
@@ -36,20 +36,18 @@ HEIGHT = 300
   maxDeltaV = 0
   lastProgress = 0
   for y in [0...HEIGHT]
-    arrivalTime = earliestArrival + ((HEIGHT-1) - y) * yResolution
-    trueAnomaly = destinationOrbit.trueAnomalyAt(arrivalTime)
-    p2 = destinationOrbit.positionAtTrueAnomaly(trueAnomaly)
-    v2 = destinationOrbit.velocityAtTrueAnomaly(trueAnomaly)
+    timeOfFlight = shortestTimeOfFlight + ((HEIGHT-1) - y) * yResolution
     
     for x in [0...WIDTH]
       departureTime = earliestDeparture + x * xResolution
-      if arrivalTime <= departureTime
-        deltaVs[i++] = NaN
-        continue
+      arrivalTime = departureTime + timeOfFlight
       
       p1 = originPositions[x]
       v1 = originVelocities[x]
-      dt = arrivalTime - departureTime
+      
+      trueAnomaly = destinationOrbit.trueAnomalyAt(arrivalTime)
+      p2 = destinationOrbit.positionAtTrueAnomaly(trueAnomaly)
+      v2 = destinationOrbit.velocityAtTrueAnomaly(trueAnomaly)
   
       transfer = Orbit.transfer(transferType, referenceBody, departureTime, p1, v1, n1, arrivalTime, p2, v2, n2, initialOrbitalVelocity, finalOrbitalVelocity)
       deltaVs[i++] = deltaV = transfer.deltaV
