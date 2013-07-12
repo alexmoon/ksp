@@ -317,8 +317,8 @@ updateAdvancedControls = ->
   minDays = if minDays < 10 then minDays.toFixed(2) else minDays.toFixed()
   maxDays = if maxDays < 10 then maxDays.toFixed(2) else maxDays.toFixed()
   
-  $('#latestDepartureYear').val(maxDeparture / 3600 / 24 / 365 | 0 + 1)
-  $('#latestDepartureDay').val(maxDeparture / 3600 / 24 % 365 | 0 + 1)
+  $('#latestDepartureYear').val((maxDeparture / 3600 / 24 / 365 | 0) + 1)
+  $('#latestDepartureDay').val((maxDeparture / 3600 / 24 % 365 | 0) + 1)
   $('#shortestTimeOfFlight').val(minDays)
   $('#longestTimeOfFlight').val(maxDays)
 

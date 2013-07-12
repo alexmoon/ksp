@@ -385,8 +385,8 @@
     maxDays = minDays + Math.min(2 * destination.orbit.period(), hohmannTransferTime) / 3600 / 24;
     minDays = minDays < 10 ? minDays.toFixed(2) : minDays.toFixed();
     maxDays = maxDays < 10 ? maxDays.toFixed(2) : maxDays.toFixed();
-    $('#latestDepartureYear').val(maxDeparture / 3600 / 24 / 365 | 0 + 1);
-    $('#latestDepartureDay').val(maxDeparture / 3600 / 24 % 365 | 0 + 1);
+    $('#latestDepartureYear').val((maxDeparture / 3600 / 24 / 365 | 0) + 1);
+    $('#latestDepartureDay').val((maxDeparture / 3600 / 24 % 365 | 0) + 1);
     $('#shortestTimeOfFlight').val(minDays);
     return $('#longestTimeOfFlight').val(maxDays);
   };
