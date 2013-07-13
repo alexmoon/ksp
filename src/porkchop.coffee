@@ -28,6 +28,8 @@ palette.push([255, i, 128]) for i in [255..128]
 
 clamp = (n, min, max) -> Math.max(min, Math.min(n, max))
 
+sign = (x) -> if x < 0 then -1 else 1
+
 numberWithCommas = (n) ->
   n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 
@@ -67,6 +69,11 @@ distanceString = (d) ->
   else
     numberWithCommas(d.toFixed()) + " m"
 
+deltaVAbbr = (el, dv, prograde, normal) ->
+  tooltip = numberWithCommas(prograde.toFixed(1)) + " m/s prograde; " +
+    numberWithCommas(normal.toFixed(1)) + " m/s normal"
+  el.attr(title: tooltip).text(numberWithCommas(dv.toFixed()) + " m/s")
+  
 angleString = (angle, precision = 0) ->
   (angle * 180 / Math.PI).toFixed(precision) + String.fromCharCode(0x00b0)
 
@@ -263,12 +270,7 @@ showTransferDetails = ->
         $('#ejectionAngle').text(angleString(transfer.ejectionAngle) + " to prograde")
     else
       $('.ejectionAngle').hide()
-    $('#ejectionDeltaV').text(numberWithCommas(transfer.ejectionDeltaV.toFixed()) + " m/s")
-    if Math.abs(transfer.ejectionNormalDeltaV) >= 0.01
-      $('#ejectionDeltaV').attr(title: numberWithCommas(transfer.ejectionProgradeDeltaV.toFixed()) + " m/s prograde; " +
-        numberWithCommas(transfer.ejectionNormalDeltaV.toFixed()) + " m/s normal")
-    else
-      $('#ejectionDeltaV').removeAttr('title')
+    deltaVAbbr($('#ejectionDeltaV'), transfer.ejectionDeltaV, transfer.ejectionProgradeDeltaV, transfer.ejectionNormalDeltaV)
     $('#transferPeriapsis').text(distanceString(transfer.orbit.periapsisAltitude()))
     $('#transferApoapsis').text(distanceString(transfer.orbit.apoapsisAltitude()))
     $('#transferInclination').text(angleString(transfer.orbit.inclination, 2))
@@ -281,7 +283,9 @@ showTransferDetails = ->
         .attr(title: "UT: #{transfer.planeChangeTime.toFixed()}s")
       $('#planeChangeAngleToIntercept').text(angleString(transfer.planeChangeAngleToIntercept, 2))
       $('#planeChangeAngle').text(angleString(transfer.planeChangeAngle, 2))
-      $('#planeChangeDeltaV').text(numberWithCommas(transfer.planeChangeDeltaV.toFixed()) + " m/s")
+      deltaVAbbr($('#planeChangeDeltaV'), transfer.planeChangeDeltaV,
+        -transfer.planeChangeDeltaV * Math.abs(Math.sin(transfer.planeChangeAngle / 2)),
+        transfer.planeChangeDeltaV * sign(transfer.planeChangeAngle) * Math.cos(transfer.planeChangeAngle / 2))
     else
       $('.planeChangeTransfer').hide()
       $('.ballisticTransfer').show()
@@ -292,9 +296,9 @@ showTransferDetails = ->
     else
       $('#insertionInclination').text("N/A")
     if transfer.insertionDeltaV != 0
-      $('#insertionDeltaV').text(numberWithCommas(transfer.insertionDeltaV.toFixed()) + " m/s")
+      deltaVAbbr($('#insertionDeltaV'), transfer.insertionDeltaV, -transfer.insertionDeltaV, 0)
     else
-      $('#insertionDeltaV').text("N/A")
+      $('#insertionDeltaV').attr(title: null).text("N/A")
     $('#totalDeltaV').text(numberWithCommas(transfer.deltaV.toFixed()) + " m/s")
   
     $('#transferDetails:hidden').fadeIn()
@@ -392,6 +396,19 @@ $(document).ready ->
         if +$('#earliestDepartureDay').val() >= +$('#latestDepartureDay').val()
           $('#latestDepartureDay').val(+$('#earliestDepartureDay').val() + 1)
   
+  $('#shortestTimeOfFlight,#longestTimeOfFlight').change (event) ->
+    if +$('#shortestTimeOfFlight').val() <= 0
+      $('#shortestTimeOfFlight').val(1)
+    if +$('#longestTimeOfFlight').val() <= 0
+      $('#longestTimeOfFlight').val(2)
+    if +$('#shortestTimeOfFlight').val() >= $('#longestTimeOfFlight').val()
+      if @id == 'shortestTimeOfFlight'
+        $('#longestTimeOfFlight').val(+$('#shortestTimeOfFlight').val() + 1)
+      else if +$('#longestTimeOfFlight').val() > 1
+        $('#shortestTimeOfFlight').val(+$('#longestTimeOfFlight').val() - 1)
+      else
+        $('#shortestTimeOfFlight').val(+$('#longestTimeOfFlight').val() / 2)
+        
   $('#porkchopForm').submit (event) ->
     event.preventDefault()
     $('#porkchopSubmit').prop('disabled', true)
