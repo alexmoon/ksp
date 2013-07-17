@@ -388,6 +388,19 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, i
       planeChangeAngle = Math.atan2(Math.tan(relativeInclination), Math.sin(x))
       Math.abs(2 * orbit.speedAtTrueAnomaly(trueAnomalyAtIntercept - x) * Math.sin(0.5 * planeChangeAngle))
 
+    # Refine the initial estimate by running the algorithm again
+    planeChangeAngle = Math.atan2(Math.tan(relativeInclination), Math.sin(x))
+    planeChangeAxis = quaternion.rotate(quaternion.fromAngleAxis(-x, n0), projectToPlane(p1, n0))
+    planeChangeRotation = quaternion.fromAngleAxis(planeChangeAngle, planeChangeAxis)
+    p1InOriginPlane = quaternion.rotate(planeChangeRotation, p1)
+    v1InOriginPlane = quaternion.rotate(planeChangeRotation, v1)
+    ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0]
+    orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0)
+    trueAnomalyAtIntercept = orbit.trueAnomalyAtPosition(p1InOriginPlane)
+    x = goldenSectionSearch x1, x2, (x) ->
+      planeChangeAngle = Math.atan2(Math.tan(relativeInclination), Math.sin(x))
+      Math.abs(2 * orbit.speedAtTrueAnomaly(trueAnomalyAtIntercept - x) * Math.sin(0.5 * planeChangeAngle))
+    
     return Orbit.transfer("planeChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, x)
   else if transferType == "planeChange"
     planeChangeAngleToIntercept ?= HALF_PI
@@ -462,5 +475,8 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, i
       r = mu / (initialOrbitalVelocity * initialOrbitalVelocity)
       e = r * v1 * v1 / mu - 1 # Eq. 4.30 simplified for a flight path angle of 0
       transfer.ejectionAngle = ejectionAngle(ejectionDeltaVector, e, n0, normalize(v0))
+    else
+      transfer.ejectionNormalDeltaV = ejectionDeltaV * Math.sin(ejectionInclination)
+      transfer.ejectionProgradeDeltaV = ejectionDeltaV * Math.cos(ejectionInclination)
   
   transfer
