@@ -307,31 +307,25 @@ Orbit.circularToHyperbolicDeltaV = circularToHyperbolicDeltaV = (v0, vinf, relat
   else
     v1 - v0 # Eq. 5.36
   
-ejectionAngle = (asymptote, eccentricity, normal, prograde) ->
+ejectionAngle = (asymptote, eccentricity, prograde) ->
   e = eccentricity
   [ax, ay, az] = normalize(asymptote)
-  [nx, ny, nz] = normal
   
-  
-  # We have three equations of three unknowns (vx, vy, vz):
+  # We have two equations of two unknowns (vx, vy):
   #   dot(v, asymptote) = cos(eta) = -1 / e  [Eq. 4.81]
   #   norm(v) = 1  [Unit vector]
-  #   dot(v, normal) = 0  [Perpendicular to normal]
+  #   vz = 0  [Perpendicular to z-axis]
   #
   # Solution is defined iff:
-  #   nz != 0
-  #   ay != 0 or (az != 0 and ny != 0) [because we are solving for vx first]
-  #   asymptote is not parallel to normal
+  #   ay != 0 [because we are solving for vx first]
   
   # Intermediate terms
-  f = ay - az * ny / nz
-  g = (az * nx - ax * nz) / (ay * nz - az * ny)
-  h = (nx + g * ny) / nz
+  g = ax / ay
   
   # Quadratic coefficients
-  a = (1 + g * g + h * h)
-  b = -2 * (g * (ny * ny + nz * nz) + nx * ny) / (e * f * nz * nz)
-  c = (nz * nz + ny * ny) / (e * e * f * f * nz * nz) - 1
+  a = 1 + g * g
+  b = 2 * g / (e * ay)
+  c = 1 / (e * e * ay * ay) - 1
   
   # Quadratic formula without loss of significance (Numerical Recipes eq. 5.6.4)
   if b < 0
@@ -341,18 +335,16 @@ ejectionAngle = (asymptote, eccentricity, normal, prograde) ->
     
   # Solution
   vx = q / a
-  vy = g * vx - 1 / (e * f)
-  vz = -(vx * nx + vy * ny) / nz
+  vy = -g * vx - 1 / (e * ay)
   
-  if numeric.dot(crossProduct([vx, vy, vz], [ax, ay, az]), normal) < 0 # Wrong orbital direction
+  if crossProduct([vx, vy, 0], [ax, ay, az])[2] < 0 # Wrong orbital direction
     vx = c / q
-    vy = g * vx - 1 / (e * f)
-    vz = -(vx * nx + vy * ny) / nz
+    vy = -g * vx - 1 / (e * ay)
   
-  if numeric.dot(crossProduct([vx, vy, vz], prograde), normal) < 0
-    TWO_PI - Math.acos(numeric.dot([vx, vy, vz], prograde))
+  if crossProduct([vx, vy, 0], prograde)[2] < 0
+    TWO_PI - Math.acos(numeric.dot([vx, vy, 0], prograde))
   else
-    Math.acos(numeric.dot([vx, vy, vz], prograde))
+    Math.acos(numeric.dot([vx, vy, 0], prograde))
 
 Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, planeChangeAngleToIntercept) ->
   dt = t1 - t0
@@ -474,7 +466,7 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, i
       mu = originBody.gravitationalParameter
       r = mu / (initialOrbitalVelocity * initialOrbitalVelocity)
       e = r * v1 * v1 / mu - 1 # Eq. 4.30 simplified for a flight path angle of 0
-      transfer.ejectionAngle = ejectionAngle(ejectionDeltaVector, e, n0, normalize(v0))
+      transfer.ejectionAngle = ejectionAngle(ejectionDeltaVector, e, normalize(v0))
     else
       transfer.ejectionNormalDeltaV = ejectionDeltaV * Math.sin(ejectionInclination)
       transfer.ejectionProgradeDeltaV = ejectionDeltaV * Math.cos(ejectionInclination)

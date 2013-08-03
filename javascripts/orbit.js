@@ -435,34 +435,29 @@
     }
   };
 
-  ejectionAngle = function(asymptote, eccentricity, normal, prograde) {
-    var a, ax, ay, az, b, c, e, f, g, h, nx, ny, nz, q, vx, vy, vz, _ref;
+  ejectionAngle = function(asymptote, eccentricity, prograde) {
+    var a, ax, ay, az, b, c, e, g, q, vx, vy, _ref;
     e = eccentricity;
     _ref = normalize(asymptote), ax = _ref[0], ay = _ref[1], az = _ref[2];
-    nx = normal[0], ny = normal[1], nz = normal[2];
-    f = ay - az * ny / nz;
-    g = (az * nx - ax * nz) / (ay * nz - az * ny);
-    h = (nx + g * ny) / nz;
-    a = 1 + g * g + h * h;
-    b = -2 * (g * (ny * ny + nz * nz) + nx * ny) / (e * f * nz * nz);
-    c = (nz * nz + ny * ny) / (e * e * f * f * nz * nz) - 1;
+    g = ax / ay;
+    a = 1 + g * g;
+    b = 2 * g / (e * ay);
+    c = 1 / (e * e * ay * ay) - 1;
     if (b < 0) {
       q = -0.5 * (b - Math.sqrt(b * b - 4 * a * c));
     } else {
       q = -0.5 * (b + Math.sqrt(b * b - 4 * a * c));
     }
     vx = q / a;
-    vy = g * vx - 1 / (e * f);
-    vz = -(vx * nx + vy * ny) / nz;
-    if (numeric.dot(crossProduct([vx, vy, vz], [ax, ay, az]), normal) < 0) {
+    vy = -g * vx - 1 / (e * ay);
+    if (crossProduct([vx, vy, 0], [ax, ay, az])[2] < 0) {
       vx = c / q;
-      vy = g * vx - 1 / (e * f);
-      vz = -(vx * nx + vy * ny) / nz;
+      vy = -g * vx - 1 / (e * ay);
     }
-    if (numeric.dot(crossProduct([vx, vy, vz], prograde), normal) < 0) {
-      return TWO_PI - Math.acos(numeric.dot([vx, vy, vz], prograde));
+    if (crossProduct([vx, vy, 0], prograde)[2] < 0) {
+      return TWO_PI - Math.acos(numeric.dot([vx, vy, 0], prograde));
     } else {
-      return Math.acos(numeric.dot([vx, vy, vz], prograde));
+      return Math.acos(numeric.dot([vx, vy, 0], prograde));
     }
   };
 
@@ -586,7 +581,7 @@
         mu = originBody.gravitationalParameter;
         r = mu / (initialOrbitalVelocity * initialOrbitalVelocity);
         e = r * v1 * v1 / mu - 1;
-        transfer.ejectionAngle = ejectionAngle(ejectionDeltaVector, e, n0, normalize(v0));
+        transfer.ejectionAngle = ejectionAngle(ejectionDeltaVector, e, normalize(v0));
       } else {
         transfer.ejectionNormalDeltaV = ejectionDeltaV * Math.sin(ejectionInclination);
         transfer.ejectionProgradeDeltaV = ejectionDeltaV * Math.cos(ejectionInclination);
