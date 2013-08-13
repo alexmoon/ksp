@@ -511,6 +511,14 @@
         }
       }
     });
+    $('#porkchopForm').bind('reset', function(event) {
+      return setTimeout(function() {
+        $('#originSelect').val('Kerbin');
+        $('#originSelect').change();
+        $('#destinationSelect').val('Duna');
+        return $('#destinationSelect').change();
+      }, 0);
+    });
     return $('#porkchopForm').submit(function(event) {
       var ctx, description, destinationBody, destinationBodyName, finalOrbit, initialOrbit, latestDeparture, originBodyName, scrollTop, _n, _o;
       event.preventDefault();

@@ -409,6 +409,14 @@ $(document).ready ->
       else
         $('#shortestTimeOfFlight').val(+$('#longestTimeOfFlight').val() / 2)
         
+  $('#porkchopForm').bind 'reset', (event) ->
+    setTimeout(-> 
+        $('#originSelect').val('Kerbin')
+        $('#originSelect').change()
+        $('#destinationSelect').val('Duna')
+        $('#destinationSelect').change()
+      0)
+  
   $('#porkchopForm').submit (event) ->
     event.preventDefault()
     $('#porkchopSubmit').prop('disabled', true)
