@@ -41,6 +41,27 @@ quaternion.fromAngleAxis = function(angle, axis) {
     return quaternion.normalize([sin * axis[0], sin * axis[1], sin * axis[2], Math.cos(halfAngle)]);
 };
 
+quaternion.fromToRotation = function(from, to) {
+  var dot, q, s, invs
+  from = numeric.divVS(from, numeric.norm2(from))
+  to = numeric.divVS(to, numeric.norm2(to))
+  dot = numeric.dot(from, to)
+  if (dot > 1.0 - 1e-6) {
+    return [0, 0, 0, 1]
+  } else if (dot < -(1.0 - 1e-6)) {
+    return quaternion.fromAngleAxis(Math.PI, [0, 0, 1])
+  } else {
+    q = new Array(4)
+    s = Math.sqrt(2 * (1 + dot))
+    invs = 1 / s
+    q[0] = (from[1] * to[2] - from[2] * to[1]) * invs
+    q[1] = (from[2] * to[0] - from[0] * to[2]) * invs
+    q[2] = (from[0] * to[1] - from[1] * to[0]) * invs
+    q[3] = 0.5 * s
+    return quaternion.normalize(q)
+  }
+}
+
 quaternion.fromVector = function(vec) {
     return [vec[0], vec[1], vec[2], 0];
 };

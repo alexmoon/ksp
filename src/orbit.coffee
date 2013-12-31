@@ -25,6 +25,15 @@ normalize = (v) -> numeric.divVS(v, numeric.norm2(v))
 
 projectToPlane = (p, n) -> numeric.subVV(p, numeric.mulSV(numeric.dot(p, n), n))
 
+angleInPlane = (from, to, normal) ->
+  from = normalize(projectToPlane(from, normal))
+  to = normalize(projectToPlane(to, normal))
+  rot = quaternion.fromToRotation(normal, [0, 0, 1])
+  from = quaternion.rotate(rot, from)
+  to = quaternion.rotate(rot, to)
+  result = Math.atan2(from[1], from[0]) - Math.atan2(to[1], to[0])
+  if result < 0 then result + TWO_PI else result
+  
 # Finds the minimum of f(x) between x1 and x2. Returns x.
 # See: http://en.wikipedia.org/wiki/Golden_section_search
 goldenSectionSearch = (x1, x2, f) ->
@@ -472,3 +481,51 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, initi
       transfer.ejectionProgradeDeltaV = ejectionDeltaV * Math.cos(ejectionInclination)
   
   transfer
+
+Orbit.courseCorrection = (transferOrbit, destinationOrbit, burnTime, eta) ->
+  # Assumes transferOrbit already passes "close" to the destination body at eta
+  mu = transferOrbit.referenceBody.gravitationalParameter
+  trueAnomaly = transferOrbit.trueAnomalyAt(burnTime)
+  p0 = transferOrbit.positionAtTrueAnomaly(trueAnomaly)
+  v0 = transferOrbit.velocityAtTrueAnomaly(trueAnomaly)
+  n0 = transferOrbit.normalVector()
+  n1 = destinationOrbit.normalVector()
+  
+  velocityForArrivalAt = (t1) ->
+    p1 = destinationOrbit.positionAtTrueAnomaly(destinationOrbit.trueAnomalyAt(t1))
+    longWay = (numeric.dot(crossProduct(p0, projectToPlane(p1, n0)), n0) < 0)
+    lambert(mu, p0, p1, t1 - burnTime)[0]
+  
+  # Search for the optimal arrival time within 20% of eta
+  t1Min = Math.max(eta - (eta - burnTime) * 0.2, burnTime + 3600)
+  t1Max = eta + (eta - burnTime) * 0.2
+  t1 = goldenSectionSearch t1Min, t1Max, (t1) ->
+    numeric.norm2Squared(numeric.subVV(velocityForArrivalAt(t1), v0))
+  
+  correctedVelocity = velocityForArrivalAt(t1)
+  deltaVector = numeric.subVV(correctedVelocity, v0)
+  deltaV = numeric.norm2(deltaVector)
+  
+  burnDirection = numeric.divVS(deltaVector, deltaV)
+  positionDirection = numeric.divVS(p0, numeric.norm2(p0))
+  
+  pitch = Math.asin(numeric.dot(burnDirection, positionDirection))
+  heading = angleInPlane([0,0,1], burnDirection, positionDirection)
+  
+  progradeDirection = numeric.divVS(v0, numeric.norm2(v0))
+  progradeDeltaV = numeric.dot(deltaVector, progradeDirection)
+  normalDeltaV = numeric.dot(deltaVector, n0)
+  radialDeltaV = Math.sqrt(deltaV*deltaV - progradeDeltaV*progradeDeltaV - normalDeltaV*normalDeltaV)
+  radialDeltaV = -radialDeltaV if numeric.dot(crossProduct(burnDirection, progradeDirection), n0) < 0
+  
+  return {
+    correctedVelocity: correctedVelocity
+    deltaVector: deltaVector
+    deltaV: deltaV
+    pitch: pitch
+    heading: heading
+    progradeDeltaV: progradeDeltaV
+    normalDeltaV: normalDeltaV
+    radialDeltaV: radialDeltaV
+    arrivalTime: t1
+  }
