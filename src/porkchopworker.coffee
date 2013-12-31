@@ -19,7 +19,6 @@ HEIGHT = 300
   referenceBody = originOrbit.referenceBody
   
   n1 = originOrbit.normalVector()
-  n2 = destinationOrbit.normalVector()
   
   # Pre-calculate destination positions and velocities
   originPositions = []
@@ -49,7 +48,7 @@ HEIGHT = 300
       p2 = destinationOrbit.positionAtTrueAnomaly(trueAnomaly)
       v2 = destinationOrbit.velocityAtTrueAnomaly(trueAnomaly)
   
-      transfer = Orbit.transfer(transferType, referenceBody, departureTime, p1, v1, n1, arrivalTime, p2, v2, n2, initialOrbitalVelocity, finalOrbitalVelocity)
+      transfer = Orbit.transfer(transferType, referenceBody, departureTime, p1, v1, n1, arrivalTime, p2, v2, initialOrbitalVelocity, finalOrbitalVelocity)
       deltaVs[i++] = deltaV = transfer.deltaV
 
       if deltaV < minDeltaV

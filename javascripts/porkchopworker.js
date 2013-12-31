@@ -15,7 +15,7 @@
   HEIGHT = 300;
 
   this.onmessage = function(event) {
-    var arrivalTime, deltaV, deltaVs, departureTime, destinationOrbit, earliestDeparture, finalOrbitalVelocity, i, initialOrbitalVelocity, lastProgress, maxDeltaV, minDeltaV, minDeltaVPoint, n1, n2, now, originOrbit, originPositions, originVelocities, p1, p2, referenceBody, shortestTimeOfFlight, timeOfFlight, transfer, transferType, trueAnomaly, v1, v2, x, xResolution, y, yResolution, _i, _j, _k;
+    var arrivalTime, deltaV, deltaVs, departureTime, destinationOrbit, earliestDeparture, finalOrbitalVelocity, i, initialOrbitalVelocity, lastProgress, maxDeltaV, minDeltaV, minDeltaVPoint, n1, now, originOrbit, originPositions, originVelocities, p1, p2, referenceBody, shortestTimeOfFlight, timeOfFlight, transfer, transferType, trueAnomaly, v1, v2, x, xResolution, y, yResolution, _i, _j, _k;
     transferType = event.data.transferType;
     originOrbit = Orbit.fromJSON(event.data.originOrbit);
     initialOrbitalVelocity = event.data.initialOrbitalVelocity;
@@ -27,7 +27,6 @@
     yResolution = event.data.yScale / HEIGHT;
     referenceBody = originOrbit.referenceBody;
     n1 = originOrbit.normalVector();
-    n2 = destinationOrbit.normalVector();
     originPositions = [];
     originVelocities = [];
     for (x = _i = 0; 0 <= WIDTH ? _i < WIDTH : _i > WIDTH; x = 0 <= WIDTH ? ++_i : --_i) {
@@ -51,7 +50,7 @@
         trueAnomaly = destinationOrbit.trueAnomalyAt(arrivalTime);
         p2 = destinationOrbit.positionAtTrueAnomaly(trueAnomaly);
         v2 = destinationOrbit.velocityAtTrueAnomaly(trueAnomaly);
-        transfer = Orbit.transfer(transferType, referenceBody, departureTime, p1, v1, n1, arrivalTime, p2, v2, n2, initialOrbitalVelocity, finalOrbitalVelocity);
+        transfer = Orbit.transfer(transferType, referenceBody, departureTime, p1, v1, n1, arrivalTime, p2, v2, initialOrbitalVelocity, finalOrbitalVelocity);
         deltaVs[i++] = deltaV = transfer.deltaV;
         if (deltaV < minDeltaV) {
           minDeltaV = deltaV;

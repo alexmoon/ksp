@@ -305,7 +305,7 @@
   };
 
   showTransferDetails = function() {
-    var ejectionAngle, n0, n1, p0, p1, t0, t1, transfer, trueAnomaly, v0, v1, x, y, _ref;
+    var ejectionAngle, n0, p0, p1, t0, t1, transfer, trueAnomaly, v0, v1, x, y, _ref;
     if (selectedPoint != null) {
       _ref = [selectedPoint.x, selectedPoint.y], x = _ref[0], y = _ref[1];
       t0 = earliestDeparture + x * xScale / PLOT_WIDTH;
@@ -317,8 +317,7 @@
       trueAnomaly = destinationOrbit.trueAnomalyAt(t1);
       p1 = destinationOrbit.positionAtTrueAnomaly(trueAnomaly);
       v1 = destinationOrbit.velocityAtTrueAnomaly(trueAnomaly);
-      n1 = destinationOrbit.normalVector();
-      transfer = Orbit.transfer(transferType, originOrbit.referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody);
+      transfer = Orbit.transfer(transferType, originOrbit.referenceBody, t0, p0, v0, n0, t1, p1, v1, initialOrbitalVelocity, finalOrbitalVelocity, originBody);
       $('#departureTime').text(kerbalDateString(t0)).attr({
         title: "UT: " + (t0.toFixed()) + "s"
       });

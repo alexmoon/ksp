@@ -461,15 +461,15 @@
     }
   };
 
-  Orbit.transfer = function(transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, planeChangeAngleToIntercept) {
+  Orbit.transfer = function(transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, planeChangeAngleToIntercept) {
     var ballisticTransfer, dt, e, ejectionDeltaV, ejectionDeltaVector, ejectionInclination, ejectionVelocity, insertionDeltaV, insertionDeltaVector, insertionInclination, insertionVelocity, mu, orbit, p1InOriginPlane, planeChangeAngle, planeChangeAxis, planeChangeDeltaV, planeChangeRotation, planeChangeTime, planeChangeTransfer, planeChangeTrueAnomaly, r, relativeInclination, transfer, transferAngle, trueAnomalyAtIntercept, v1InOriginPlane, vinf, x, x1, x2, _ref, _ref1, _ref2;
     dt = t1 - t0;
     if (transferType === "optimal") {
-      ballisticTransfer = Orbit.transfer("ballistic", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody);
+      ballisticTransfer = Orbit.transfer("ballistic", referenceBody, t0, p0, v0, n0, t1, p1, v1, initialOrbitalVelocity, finalOrbitalVelocity, originBody);
       if (ballisticTransfer.angle <= HALF_PI) {
         return ballisticTransfer;
       }
-      planeChangeTransfer = Orbit.transfer("optimalPlaneChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody);
+      planeChangeTransfer = Orbit.transfer("optimalPlaneChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, initialOrbitalVelocity, finalOrbitalVelocity, originBody);
       if (ballisticTransfer.deltaV < planeChangeTransfer.deltaV) {
         return ballisticTransfer;
       } else {
@@ -507,7 +507,7 @@
         planeChangeAngle = Math.atan2(Math.tan(relativeInclination), Math.sin(x));
         return Math.abs(2 * orbit.speedAtTrueAnomaly(trueAnomalyAtIntercept - x) * Math.sin(0.5 * planeChangeAngle));
       });
-      return Orbit.transfer("planeChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, n1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, x);
+      return Orbit.transfer("planeChange", referenceBody, t0, p0, v0, n0, t1, p1, v1, initialOrbitalVelocity, finalOrbitalVelocity, originBody, x);
     } else if (transferType === "planeChange") {
       if (planeChangeAngleToIntercept == null) {
         planeChangeAngleToIntercept = HALF_PI;
@@ -541,14 +541,14 @@
     }
     ejectionDeltaVector = numeric.subVV(ejectionVelocity, v0);
     ejectionDeltaV = numeric.norm2(ejectionDeltaVector);
-    ejectionInclination = Math.asin(numeric.dot(ejectionDeltaVector, n0) / ejectionDeltaV);
+    ejectionInclination = Math.asin(ejectionDeltaVector[2] / ejectionDeltaV);
     if (initialOrbitalVelocity) {
       ejectionDeltaV = circularToHyperbolicDeltaV(initialOrbitalVelocity, ejectionDeltaV, ejectionInclination);
     }
     if (finalOrbitalVelocity != null) {
       insertionDeltaVector = numeric.subVV(insertionVelocity, v1);
       insertionDeltaV = numeric.norm2(insertionDeltaVector);
-      insertionInclination = Math.asin(numeric.dot(insertionDeltaVector, n1) / insertionDeltaV);
+      insertionInclination = Math.asin(insertionDeltaVector[2] / insertionDeltaV);
       if (finalOrbitalVelocity) {
         insertionDeltaV = circularToHyperbolicDeltaV(finalOrbitalVelocity, insertionDeltaV, 0);
       }
