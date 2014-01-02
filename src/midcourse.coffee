@@ -72,7 +72,7 @@ $(document).ready ->
     s.prop('disabled', s[0].childNodes.length == 0)
   
   $('#referenceBodySelect').change()
-  $('#destinationSelect').val('Duna')
+  $('#destinationSelect').val($("#destinationSelect option:first").val())
   
   $('#smaScaleMenu a').click (event) ->
     event.preventDefault()

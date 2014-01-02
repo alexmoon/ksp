@@ -121,7 +121,7 @@
       return s.prop('disabled', s[0].childNodes.length === 0);
     });
     $('#referenceBodySelect').change();
-    $('#destinationSelect').val('Duna');
+    $('#destinationSelect').val($("#destinationSelect option:first").val());
     $('#smaScaleMenu a').click(function(event) {
       event.preventDefault();
       return document.getElementById('smaScale').childNodes[0].nodeValue = $(this).text();

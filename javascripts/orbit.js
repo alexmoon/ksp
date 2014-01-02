@@ -56,7 +56,7 @@
     }
   };
 
-  goldenSectionSearch = function(x1, x2, f) {
+  goldenSectionSearch = function(x1, x2, epsilon, f) {
     var k, x, x3, y, y2;
     k = 2 - GOLDEN_RATIO;
     x3 = x2;
@@ -68,7 +68,7 @@
       } else {
         x = x2 - k * (x2 - x1);
       }
-      if ((x3 - x1) < (1e-2 * (x2 + x))) {
+      if ((x3 - x1) < (epsilon * (x2 + x))) {
         return (x3 + x1) / 2;
       }
       y = f(x);
@@ -505,7 +505,7 @@
       ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0];
       orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0);
       trueAnomalyAtIntercept = orbit.trueAnomalyAtPosition(p1InOriginPlane);
-      x = goldenSectionSearch(x1, x2, function(x) {
+      x = goldenSectionSearch(x1, x2, 1e-2, function(x) {
         var planeChangeAngle;
         planeChangeAngle = Math.atan2(Math.tan(relativeInclination), Math.sin(x));
         return Math.abs(2 * orbit.speedAtTrueAnomaly(trueAnomalyAtIntercept - x) * Math.sin(0.5 * planeChangeAngle));
@@ -518,7 +518,7 @@
       ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0];
       orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0);
       trueAnomalyAtIntercept = orbit.trueAnomalyAtPosition(p1InOriginPlane);
-      x = goldenSectionSearch(x1, x2, function(x) {
+      x = goldenSectionSearch(x1, x2, 1e-2, function(x) {
         planeChangeAngle = Math.atan2(Math.tan(relativeInclination), Math.sin(x));
         return Math.abs(2 * orbit.speedAtTrueAnomaly(trueAnomalyAtIntercept - x) * Math.sin(0.5 * planeChangeAngle));
       });
@@ -619,11 +619,12 @@
       longWay = numeric.dot(crossProduct(p0, projectToPlane(p1, n0)), n0) < 0;
       return lambert(mu, p0, p1, t1 - burnTime)[0];
     };
-    t1Min = Math.max(eta - (eta - burnTime) * 0.2, burnTime + 3600);
-    t1Max = eta + (eta - burnTime) * 0.2;
-    t1 = goldenSectionSearch(t1Min, t1Max, function(t1) {
-      return numeric.norm2Squared(numeric.subVV(velocityForArrivalAt(t1), v0));
+    t1Min = Math.max(0.5 * (eta - burnTime), 3600);
+    t1Max = 1.5 * (eta - burnTime);
+    t1 = goldenSectionSearch(t1Min, t1Max, 1e-4, function(t1) {
+      return numeric.norm2Squared(numeric.subVV(velocityForArrivalAt(burnTime + t1), v0));
     });
+    t1 = t1 + burnTime;
     correctedVelocity = velocityForArrivalAt(t1);
     deltaVector = numeric.subVV(correctedVelocity, v0);
     deltaV = numeric.norm2(deltaVector);

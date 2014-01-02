@@ -36,7 +36,7 @@ angleInPlane = (from, to, normal) ->
   
 # Finds the minimum of f(x) between x1 and x2. Returns x.
 # See: http://en.wikipedia.org/wiki/Golden_section_search
-goldenSectionSearch = (x1, x2, f) ->
+goldenSectionSearch = (x1, x2, epsilon, f) ->
   k = 2 - GOLDEN_RATIO
   x3 = x2
   x2 = x1 + k * (x3 - x1)
@@ -49,7 +49,7 @@ goldenSectionSearch = (x1, x2, f) ->
     else
       x = x2 - k * (x2 - x1)
     
-    return (x3 + x1) / 2 if (x3 - x1) < (1e-2 * (x2 + x)) # Close enough
+    return (x3 + x1) / 2 if (x3 - x1) < (epsilon * (x2 + x)) # Close enough
     
     y = f(x)
     if y < y2
@@ -385,7 +385,7 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, initi
     ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0]
     orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0)
     trueAnomalyAtIntercept = orbit.trueAnomalyAtPosition(p1InOriginPlane)
-    x = goldenSectionSearch x1, x2, (x) ->
+    x = goldenSectionSearch x1, x2, 1e-2, (x) ->
       planeChangeAngle = Math.atan2(Math.tan(relativeInclination), Math.sin(x))
       Math.abs(2 * orbit.speedAtTrueAnomaly(trueAnomalyAtIntercept - x) * Math.sin(0.5 * planeChangeAngle))
 
@@ -398,7 +398,7 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, initi
     ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0]
     orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0)
     trueAnomalyAtIntercept = orbit.trueAnomalyAtPosition(p1InOriginPlane)
-    x = goldenSectionSearch x1, x2, (x) ->
+    x = goldenSectionSearch x1, x2, 1e-2, (x) ->
       planeChangeAngle = Math.atan2(Math.tan(relativeInclination), Math.sin(x))
       Math.abs(2 * orbit.speedAtTrueAnomaly(trueAnomalyAtIntercept - x) * Math.sin(0.5 * planeChangeAngle))
     
@@ -497,10 +497,11 @@ Orbit.courseCorrection = (transferOrbit, destinationOrbit, burnTime, eta) ->
     lambert(mu, p0, p1, t1 - burnTime)[0]
   
   # Search for the optimal arrival time within 20% of eta
-  t1Min = Math.max(eta - (eta - burnTime) * 0.2, burnTime + 3600)
-  t1Max = eta + (eta - burnTime) * 0.2
-  t1 = goldenSectionSearch t1Min, t1Max, (t1) ->
-    numeric.norm2Squared(numeric.subVV(velocityForArrivalAt(t1), v0))
+  t1Min = Math.max(0.5 * (eta - burnTime), 3600)
+  t1Max = 1.5 * (eta - burnTime)
+  t1 = goldenSectionSearch t1Min, t1Max, 1e-4, (t1) ->
+    numeric.norm2Squared(numeric.subVV(velocityForArrivalAt(burnTime + t1), v0))
+  t1 = t1 + burnTime # Convert relative flight time to arrival time
   
   correctedVelocity = velocityForArrivalAt(t1)
   deltaVector = numeric.subVV(correctedVelocity, v0)
