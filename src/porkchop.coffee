@@ -54,7 +54,7 @@ durationString = (t) ->
   if t >= 365 * 24 * 3600
     result += (t / (365 * 24 * 3600) | 0) + " years "
     t %= 365 * 24 * 3600
-    result += "0d" if t < 24 * 3600
+    result += "0 days " if t < 24 * 3600
   result += (t / (24 * 3600) | 0) + " days " if t >= 24 * 3600
   t %= 24 * 3600
   result + hourMinSec(t)

@@ -68,13 +68,10 @@ newtonsMethod = (x0, f, df) ->
 
 (exports ? this).Orbit = class Orbit
   constructor: (@referenceBody, @semiMajorAxis, @eccentricity, inclination,
-    longitudeOfAscendingNode, argumentOfPeriapsis, @meanAnomalyAtEpoch) ->
+    longitudeOfAscendingNode, argumentOfPeriapsis, @meanAnomalyAtEpoch, @timeOfPeriapsisPassage) ->
     @inclination = inclination * Math.PI / 180 if inclination?
     @longitudeOfAscendingNode = longitudeOfAscendingNode * Math.PI / 180 if longitudeOfAscendingNode?
     @argumentOfPeriapsis = argumentOfPeriapsis * Math.PI / 180 if argumentOfPeriapsis?
-    if @isHyperbolic()
-      @timeOfPeriapsisPassage = @meanAnomalyAtEpoch
-      delete @meanAnomalyAtEpoch
   
   isHyperbolic: ->
     @eccentricity > 1
@@ -133,7 +130,11 @@ newtonsMethod = (x0, f, df) ->
     if @isHyperbolic()
       (t - @timeOfPeriapsisPassage) * @meanMotion()
     else
-      (@meanAnomalyAtEpoch + @meanMotion() * (t % @period())) % TWO_PI
+      if @timeOfPeriapsisPassage?
+        M = ((t - @timeOfPeriapsisPassage) % @period()) * @meanMotion()
+        if M < 0 then M + TWO_PI else M
+      else
+        (@meanAnomalyAtEpoch + @meanMotion() * (t % @period())) % TWO_PI
   
   eccentricAnomalyAt: (t) ->
     e = @eccentricity
@@ -186,7 +187,10 @@ newtonsMethod = (x0, f, df) ->
       @timeOfPeriapsisPassage + M / @meanMotion() # Eq. 4.86
     else
       p = @period()
-      t = (t0 - (t0 % p)) + (M - @meanAnomalyAtEpoch) / @meanMotion()
+      if @timeOfPeriapsisPassage?
+        t = @timeOfPeriapsisPassage + p * Math.floor((t0 - @timeOfPeriapsisPassage) / p) + M / @meanMotion()
+      else
+        t = (t0 - (t0 % p)) + (M - @meanAnomalyAtEpoch) / @meanMotion()
       if t < t0 then t + p else t
   
   radiusAtTrueAnomaly: (tA) ->
@@ -228,48 +232,14 @@ Orbit.fromJSON = (json) ->
   result.longitudeOfAscendingNode = json.longitudeOfAscendingNode
   result.argumentOfPeriapsis = json.argumentOfPeriapsis
   result.meanAnomalyAtEpoch = json.meanAnomalyAtEpoch
+  result.timeOfPeriapsisPassage = json.timeOfPeriapsisPassage
   result
   
-Orbit.fromApoapsisAndPeriapsis = (referenceBody, apoapsis, periapsis, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch) ->
+Orbit.fromApoapsisAndPeriapsis = (referenceBody, apoapsis, periapsis, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch, timeOfPeriapsisPassage) ->
   [apoapsis, periapsis] = [periapsis, apoapsis] if apoapsis < periapsis
   semiMajorAxis = (apoapsis + periapsis) / 2
   eccentricity = apoapsis / semiMajorAxis - 1
-  new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch)
-
-Orbit.fromAltitudeAndSpeed = (referenceBody, altitude, speed, flightPathAngle, heading, latitude, longitude, t) ->
-  # Convert to standard units
-  radius = referenceBody.radius + altitude
-  flightPathAngle = flightPathAngle * Math.PI / 180
-  heading = heading * Math.PI / 180 if heading?
-  latitude = latitude * Math.PI / 180 if latitude?
-  longitude = longitude * Math.PI / 180 if longitude?
-  
-  mu = referenceBody.gravitationalParameter
-  sinPhi= Math.sin(flightPathAngle)
-  cosPhi= Math.cos(flightPathAngle)
-  
-  semiMajorAxis = 1 / (2 / radius - speed * speed / mu)
-  eccentricity = Math.sqrt(Math.pow(radius * speed * speed / mu - 1, 2) * cosPhi * cosPhi + sinPhi * sinPhi)
-  
-  orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity, 0, 0, 0, 0)
-  
-  e = eccentricity
-  trueAnomaly = Math.acos((orbit.semiMajorAxis * (1 - e * e) / radius - 1) / e)
-  trueAnomaly = TWO_PI - trueAnomaly if flightPathAngle < 0
-  
-  meanAnomaly = orbit.meanAnomalyAtTrueAnomaly(trueAnomaly)
-  orbit.meanAnomalyAtEpoch = meanAnomaly - orbit.meanMotion() * (t % orbit.period())
-  
-  if heading? and latitude?
-    orbit.inclination = Math.acos(Math.cos(latitude) * Math.sin(heading))
-    orbitalAngleToAscendingNode = Math.atan2(Math.tan(latitude), Math.cos(heading))
-    orbit.argumentOfPeriapsis = orbitalAngleToAscendingNode - trueAnomaly
-    
-    if longitude?
-      equatorialAngleToAscendingNode = Math.atan2(Math.sin(latitude) * Math.sin(heading), Math.cos(heading))
-      orbit.longitudeOfAscendingNode = referenceBody.siderealTimeAt(longitude - equatorialAngleToAscendingNode, t)
-  
-  orbit
+  new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch, timeOfPeriapsisPassage)
 
 Orbit.fromPositionAndVelocity = (referenceBody, position, velocity, t) ->
   # From: http://www.braeunig.us/space/interpl.htm#elements
@@ -302,10 +272,7 @@ Orbit.fromPositionAndVelocity = (referenceBody, position, velocity, t) ->
   trueAnomaly = -trueAnomaly if numeric.dot(position, velocity) < 0
   
   meanAnomaly = orbit.meanAnomalyAtTrueAnomaly(trueAnomaly)
-  if orbit.isHyperbolic()
-    orbit.timeOfPeriapsisPassage = t - meanAnomaly / orbit.meanMotion()
-  else
-    orbit.meanAnomalyAtEpoch = meanAnomaly - orbit.meanMotion() * (t % orbit.period())
+  orbit.timeOfPeriapsisPassage = t - meanAnomaly / orbit.meanMotion()
   
   orbit
 

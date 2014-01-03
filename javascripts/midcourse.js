@@ -127,14 +127,14 @@
       return document.getElementById('smaScale').childNodes[0].nodeValue = $(this).text();
     });
     return $('#midcourseForm').submit(function(event) {
-      var argumentOfPeriapsis, burn, burnTime, destinationBody, eccentricity, errorFields, errors, eta, inclination, longitudeOfAscendingNode, meanAnomalyAtEpoch, orbit, referenceBody, semiMajorAxis;
+      var argumentOfPeriapsis, burn, burnTime, destinationBody, eccentricity, errorFields, errors, eta, inclination, longitudeOfAscendingNode, orbit, referenceBody, semiMajorAxis, timeOfPeriapsisPassage;
       event.preventDefault();
       semiMajorAxis = distanceFromScale(+$('#sma').val(), $('#smaScale').text());
       eccentricity = +$('#eccentricity').val();
       inclination = +$('#inclination').val();
       longitudeOfAscendingNode = +$('#longitudeOfAscendingNode').val();
       argumentOfPeriapsis = +$('#argumentOfPeriapsis').val();
-      meanAnomalyAtEpoch = +$('#meanAnomalyAtEpoch').val();
+      timeOfPeriapsisPassage = dateFromString($('#timeOfPeriapsisPassage').val());
       referenceBody = CelestialBody[$('#referenceBodySelect').val()];
       destinationBody = CelestialBody[$('#destinationSelect').val()];
       eta = dateFromString($('#eta').val());
@@ -170,10 +170,6 @@
         errorFields = errorFields.add('#argumentOfPeriapsis ');
         errors.push('the argument of periapsis  must be between 0 and 360');
       }
-      if (meanAnomalyAtEpoch < 0 || meanAnomalyAtEpoch > 2 * Math.PI) {
-        errorFields = errorFields.add('#meanAnomalyAtEpoch');
-        errors.push('the mean anomaly at epoch must be between 0 and 2&pi;');
-      }
       if (burnTime < 0) {
         errorFields = errorFields.add('#burnTime');
         errors.push('the time of maneuver and estimated time of arrival must be greater than 0');
@@ -191,7 +187,7 @@
         return;
       }
       $('#validationAlert:visible').slideUp();
-      orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch);
+      orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, null, timeOfPeriapsisPassage);
       burn = Orbit.courseCorrection(orbit, destinationBody.orbit, burnTime, eta);
       $('#burnDeltaV').text(burn.deltaV.toFixed(1) + " m/s");
       $('#burnPitch').text(angleString(burn.pitch, 2));

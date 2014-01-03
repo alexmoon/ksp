@@ -103,11 +103,12 @@
 
   (typeof exports !== "undefined" && exports !== null ? exports : this).Orbit = Orbit = (function() {
 
-    function Orbit(referenceBody, semiMajorAxis, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch) {
+    function Orbit(referenceBody, semiMajorAxis, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch, timeOfPeriapsisPassage) {
       this.referenceBody = referenceBody;
       this.semiMajorAxis = semiMajorAxis;
       this.eccentricity = eccentricity;
       this.meanAnomalyAtEpoch = meanAnomalyAtEpoch;
+      this.timeOfPeriapsisPassage = timeOfPeriapsisPassage;
       if (inclination != null) {
         this.inclination = inclination * Math.PI / 180;
       }
@@ -116,10 +117,6 @@
       }
       if (argumentOfPeriapsis != null) {
         this.argumentOfPeriapsis = argumentOfPeriapsis * Math.PI / 180;
-      }
-      if (this.isHyperbolic()) {
-        this.timeOfPeriapsisPassage = this.meanAnomalyAtEpoch;
-        delete this.meanAnomalyAtEpoch;
       }
     }
 
@@ -198,10 +195,20 @@
     };
 
     Orbit.prototype.meanAnomalyAt = function(t) {
+      var M;
       if (this.isHyperbolic()) {
         return (t - this.timeOfPeriapsisPassage) * this.meanMotion();
       } else {
-        return (this.meanAnomalyAtEpoch + this.meanMotion() * (t % this.period())) % TWO_PI;
+        if (this.timeOfPeriapsisPassage != null) {
+          M = ((t - this.timeOfPeriapsisPassage) % this.period()) * this.meanMotion();
+          if (M < 0) {
+            return M + TWO_PI;
+          } else {
+            return M;
+          }
+        } else {
+          return (this.meanAnomalyAtEpoch + this.meanMotion() * (t % this.period())) % TWO_PI;
+        }
       }
     };
 
@@ -289,7 +296,11 @@
         return this.timeOfPeriapsisPassage + M / this.meanMotion();
       } else {
         p = this.period();
-        t = (t0 - (t0 % p)) + (M - this.meanAnomalyAtEpoch) / this.meanMotion();
+        if (this.timeOfPeriapsisPassage != null) {
+          t = this.timeOfPeriapsisPassage + p * Math.floor((t0 - this.timeOfPeriapsisPassage) / p) + M / this.meanMotion();
+        } else {
+          t = (t0 - (t0 % p)) + (M - this.meanAnomalyAtEpoch) / this.meanMotion();
+        }
         if (t < t0) {
           return t + p;
         } else {
@@ -347,55 +358,18 @@
     result.longitudeOfAscendingNode = json.longitudeOfAscendingNode;
     result.argumentOfPeriapsis = json.argumentOfPeriapsis;
     result.meanAnomalyAtEpoch = json.meanAnomalyAtEpoch;
+    result.timeOfPeriapsisPassage = json.timeOfPeriapsisPassage;
     return result;
   };
 
-  Orbit.fromApoapsisAndPeriapsis = function(referenceBody, apoapsis, periapsis, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch) {
+  Orbit.fromApoapsisAndPeriapsis = function(referenceBody, apoapsis, periapsis, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch, timeOfPeriapsisPassage) {
     var eccentricity, semiMajorAxis, _ref;
     if (apoapsis < periapsis) {
       _ref = [periapsis, apoapsis], apoapsis = _ref[0], periapsis = _ref[1];
     }
     semiMajorAxis = (apoapsis + periapsis) / 2;
     eccentricity = apoapsis / semiMajorAxis - 1;
-    return new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch);
-  };
-
-  Orbit.fromAltitudeAndSpeed = function(referenceBody, altitude, speed, flightPathAngle, heading, latitude, longitude, t) {
-    var cosPhi, e, eccentricity, equatorialAngleToAscendingNode, meanAnomaly, mu, orbit, orbitalAngleToAscendingNode, radius, semiMajorAxis, sinPhi, trueAnomaly;
-    radius = referenceBody.radius + altitude;
-    flightPathAngle = flightPathAngle * Math.PI / 180;
-    if (heading != null) {
-      heading = heading * Math.PI / 180;
-    }
-    if (latitude != null) {
-      latitude = latitude * Math.PI / 180;
-    }
-    if (longitude != null) {
-      longitude = longitude * Math.PI / 180;
-    }
-    mu = referenceBody.gravitationalParameter;
-    sinPhi = Math.sin(flightPathAngle);
-    cosPhi = Math.cos(flightPathAngle);
-    semiMajorAxis = 1 / (2 / radius - speed * speed / mu);
-    eccentricity = Math.sqrt(Math.pow(radius * speed * speed / mu - 1, 2) * cosPhi * cosPhi + sinPhi * sinPhi);
-    orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity, 0, 0, 0, 0);
-    e = eccentricity;
-    trueAnomaly = Math.acos((orbit.semiMajorAxis * (1 - e * e) / radius - 1) / e);
-    if (flightPathAngle < 0) {
-      trueAnomaly = TWO_PI - trueAnomaly;
-    }
-    meanAnomaly = orbit.meanAnomalyAtTrueAnomaly(trueAnomaly);
-    orbit.meanAnomalyAtEpoch = meanAnomaly - orbit.meanMotion() * (t % orbit.period());
-    if ((heading != null) && (latitude != null)) {
-      orbit.inclination = Math.acos(Math.cos(latitude) * Math.sin(heading));
-      orbitalAngleToAscendingNode = Math.atan2(Math.tan(latitude), Math.cos(heading));
-      orbit.argumentOfPeriapsis = orbitalAngleToAscendingNode - trueAnomaly;
-      if (longitude != null) {
-        equatorialAngleToAscendingNode = Math.atan2(Math.sin(latitude) * Math.sin(heading), Math.cos(heading));
-        orbit.longitudeOfAscendingNode = referenceBody.siderealTimeAt(longitude - equatorialAngleToAscendingNode, t);
-      }
-    }
-    return orbit;
+    return new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch, timeOfPeriapsisPassage);
   };
 
   Orbit.fromPositionAndVelocity = function(referenceBody, position, velocity, t) {
@@ -432,11 +406,7 @@
       trueAnomaly = -trueAnomaly;
     }
     meanAnomaly = orbit.meanAnomalyAtTrueAnomaly(trueAnomaly);
-    if (orbit.isHyperbolic()) {
-      orbit.timeOfPeriapsisPassage = t - meanAnomaly / orbit.meanMotion();
-    } else {
-      orbit.meanAnomalyAtEpoch = meanAnomaly - orbit.meanMotion() * (t % orbit.period());
-    }
+    orbit.timeOfPeriapsisPassage = t - meanAnomaly / orbit.meanMotion();
     return orbit;
   };
 

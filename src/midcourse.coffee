@@ -86,7 +86,7 @@ $(document).ready ->
     inclination = +$('#inclination').val()
     longitudeOfAscendingNode = +$('#longitudeOfAscendingNode').val()
     argumentOfPeriapsis = +$('#argumentOfPeriapsis').val()
-    meanAnomalyAtEpoch = +$('#meanAnomalyAtEpoch').val()
+    timeOfPeriapsisPassage = dateFromString($('#timeOfPeriapsisPassage').val())
     
     referenceBody = CelestialBody[$('#referenceBodySelect').val()]
     destinationBody = CelestialBody[$('#destinationSelect').val()]
@@ -116,9 +116,6 @@ $(document).ready ->
     if argumentOfPeriapsis  < 0 or argumentOfPeriapsis  > 360
       errorFields = errorFields.add('#argumentOfPeriapsis ')
       errors.push('the argument of periapsis  must be between 0 and 360')
-    if meanAnomalyAtEpoch  < 0 or meanAnomalyAtEpoch  > 2 * Math.PI
-      errorFields = errorFields.add('#meanAnomalyAtEpoch')
-      errors.push('the mean anomaly at epoch must be between 0 and 2&pi;')
     if burnTime < 0
       errorFields = errorFields.add('#burnTime')
       errors.push('the time of maneuver and estimated time of arrival must be greater than 0')
@@ -134,7 +131,7 @@ $(document).ready ->
       return
     $('#validationAlert:visible').slideUp()
     
-    orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch)
+    orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, null, timeOfPeriapsisPassage)
     
     burn = Orbit.courseCorrection(orbit, destinationBody.orbit, burnTime, eta)
     $('#burnDeltaV').text(burn.deltaV.toFixed(1) + " m/s")
