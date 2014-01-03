@@ -401,10 +401,37 @@
     return $('#longestTimeOfFlight').val(maxDays);
   };
 
+  this.prepareOrigins = function() {
+    var listBody, o;
+    o = $('#originSelect');
+    o.empty();
+    return (listBody = (function(body, elem) {
+      var group, k, v, _ref, _results;
+      _results = [];
+      for (k in CelestialBody) {
+        v = CelestialBody[k];
+        if (!((v != null ? (_ref = v.orbit) != null ? _ref.referenceBody : void 0 : void 0) === body)) {
+          continue;
+        }
+        group = $('<optgroup>');
+        listBody(v, group);
+        if (group.children().size() > 0) {
+          group.prepend($('<option>').text(k));
+          group.attr('label', k + ' System');
+          _results.push(elem.append(group));
+        } else {
+          _results.push(elem.append($('<option>').text(k)));
+        }
+      }
+      return _results;
+    }))(CelestialBody.Kerbol, o);
+  };
+
   $(document).ready(function() {
     canvasContext = $('#porkchopCanvas')[0].getContext('2d');
     plotImageData = canvasContext.createImageData(PLOT_WIDTH, PLOT_HEIGHT);
     prepareCanvas();
+    prepareOrigins();
     $('#porkchopCanvas').mousemove(function(event) {
       var offsetX, offsetY, pointer, x, y, _ref, _ref1;
       if (deltaVs != null) {
