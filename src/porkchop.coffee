@@ -332,12 +332,10 @@ updateAdvancedControls = ->
     for k, v of CelestialBody when v?.orbit?.referenceBody == body
       group = $('<optgroup>')
       listBody(v, group)
+      elem.append($('<option>').text(k))
       if group.children().size() > 0
-        group.prepend($('<option>').text(k))
-        group.attr('label', k + ' System')
+        group.attr('label', k + '\'s Moons')
         elem.append(group)
-      else
-        elem.append($('<option>').text(k))
   ))(CelestialBody.Kerbol, o)
 
 $(document).ready ->

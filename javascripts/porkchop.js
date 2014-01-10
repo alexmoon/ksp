@@ -415,12 +415,12 @@
         }
         group = $('<optgroup>');
         listBody(v, group);
+        elem.append($('<option>').text(k));
         if (group.children().size() > 0) {
-          group.prepend($('<option>').text(k));
-          group.attr('label', k + ' System');
+          group.attr('label', k + '\'s Moons');
           _results.push(elem.append(group));
         } else {
-          _results.push(elem.append($('<option>').text(k)));
+          _results.push(void 0);
         }
       }
       return _results;
