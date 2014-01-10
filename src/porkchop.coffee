@@ -15,6 +15,8 @@ xScale = null
 yScale = null
 deltaVs = null
 
+ignoreInsertion = null
+
 canvasContext = null
 plotImageData = null
 selectedPoint = null
@@ -254,6 +256,10 @@ showTransferDetails = ->
     v1 = destinationOrbit.velocityAtTrueAnomaly(trueAnomaly)
   
     transfer = Orbit.transfer(transferType, originOrbit.referenceBody, t0, p0, v0, n0, t1, p1, v1, initialOrbitalVelocity, finalOrbitalVelocity, originBody)
+    
+    if ignoreInsertion
+      transfer.deltaV -= transfer.insertionDeltaV
+      transfer.insertionDeltaV = 0
   
     $('#departureTime').text(kerbalDateString(t0)).attr(title: "UT: #{t0.toFixed()}s")
     $('#arrivalTime').text(kerbalDateString(t1)).attr(title: "UT: #{t1.toFixed()}s")
@@ -324,6 +330,7 @@ updateAdvancedControls = ->
   $('#latestDepartureDay').val((maxDeparture / 3600 / 24 % 365 | 0) + 1)
   $('#shortestTimeOfFlight').val(minDays)
   $('#longestTimeOfFlight').val(maxDays)
+  $('#useAtmoForInsertion').attr("disabled", destination.atmPressure == 0)
 
 $(document).ready ->
   canvasContext = $('#porkchopCanvas')[0].getContext('2d')
@@ -455,6 +462,8 @@ $(document).ready ->
     shortestTimeOfFlight = +$('#shortestTimeOfFlight').val() * 24 * 3600
     yScale = +$('#longestTimeOfFlight').val() * 24 * 3600 - shortestTimeOfFlight
     
+    ignoreInsertion = ($('#useAtmoForInsertion').is(":checked") && destinationBody.atmPressure > 0)
+    
     originOrbit = originBody.orbit
     destinationOrbit = destinationBody.orbit
     
@@ -480,7 +489,8 @@ $(document).ready ->
       transferType: transferType, originOrbit: originOrbit, destinationOrbit: destinationOrbit,
       initialOrbitalVelocity: initialOrbitalVelocity, finalOrbitalVelocity: finalOrbitalVelocity,
       earliestDeparture: earliestDeparture, xScale: xScale,
-      shortestTimeOfFlight: shortestTimeOfFlight, yScale: yScale)
+      shortestTimeOfFlight: shortestTimeOfFlight, yScale: yScale,
+      ignoreInsertion: ignoreInsertion)
 
     description = "#{originBodyName} @#{+initialOrbit}km to #{destinationBodyName}"
     description += " @#{+finalOrbit}km" if finalOrbit
