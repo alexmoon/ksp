@@ -324,6 +324,9 @@ updateAdvancedControls = ->
   $('#latestDepartureDay').val((maxDeparture / 3600 / 24 % 365 | 0) + 1)
   $('#shortestTimeOfFlight').val(minDays)
   $('#longestTimeOfFlight').val(maxDays)
+  $('#useAtmoForInsertion').attr("disabled", destination.atmPressure == 0)
+  aerobrake = $('#useAtmoForInsertion').is(":checked") && !$('#useAtmoForInsertion').attr("disabled")
+  $('#finalOrbit').attr("disabled", aerobrake)
 
 @prepareOrigins = -> #Globalized so bodies can be added in the console
   o = $('#originSelect')
@@ -389,6 +392,9 @@ $(document).ready ->
   $('#destinationSelect').val('Duna')
   $('#destinationSelect').change()
   
+  $('#useAtmoForInsertion').change (event) ->
+    $('#finalOrbit').attr("disabled", $('#useAtmoForInsertion').is(":checked"))
+  
   $('#showAdvancedControls').click (event) ->
     $this = $(this)
     if $this.text().indexOf('Show') != -1
@@ -451,7 +457,8 @@ $(document).ready ->
     else
       initialOrbitalVelocity = originBody.circularOrbitVelocity(initialOrbit * 1e3)
         
-    if finalOrbit
+    aerobrake = ($('#useAtmoForInsertion').is(":checked") && !$('#useAtmoForInsertion').attr("disabled"))
+    if finalOrbit and !aerobrake
       if +finalOrbit == 0
         finalOrbitalVelocity = 0
       else
