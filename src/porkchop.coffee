@@ -325,11 +325,25 @@ updateAdvancedControls = ->
   $('#shortestTimeOfFlight').val(minDays)
   $('#longestTimeOfFlight').val(maxDays)
 
+@prepareOrigins = -> #Globalized so bodies can be added in the console
+  o = $('#originSelect')
+  o.empty()
+  (listBody = ( (body, elem) ->
+    for k, v of CelestialBody when v?.orbit?.referenceBody == body
+      group = $('<optgroup>')
+      listBody(v, group)
+      elem.append($('<option>').text(k))
+      if group.children().size() > 0
+        group.attr('label', k + '\'s Moons')
+        elem.append(group)
+  ))(CelestialBody.Kerbol, o)
+
 $(document).ready ->
   canvasContext = $('#porkchopCanvas')[0].getContext('2d')
   plotImageData = canvasContext.createImageData(PLOT_WIDTH, PLOT_HEIGHT)
   
   prepareCanvas()
+  prepareOrigins()
   
   $('#porkchopCanvas').mousemove (event) ->
     if deltaVs?
