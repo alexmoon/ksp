@@ -81,9 +81,9 @@ worker = new Worker("javascripts/porkchopworker.js")
 
 worker.onmessage = (event) ->
   if 'progress' of event.data
-    $('#porkchopProgress').show().find('.bar').width((event.data.progress * 100 | 0) + "%")
+    $('#porkchopProgress').show().find('.progress-bar').width((event.data.progress * 100 | 0) + "%")
   else if 'deltaVs' of event.data
-    $('#porkchopProgress').hide().find('.bar').width("0%")
+    $('#porkchopProgress').hide().find('.progress-bar').width("0%")
     deltaVs = event.data.deltaVs
     deltaVs = new Float64Array(deltaVs) if deltaVs instanceof ArrayBuffer
     minDeltaV = event.data.minDeltaV

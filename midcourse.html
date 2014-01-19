@@ -7,6 +7,7 @@
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="stylesheets/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="stylesheets/bootstrap-theme.min.css" rel="stylesheet" media="screen">
     <!--[if lt IE 9]>
     <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
@@ -32,22 +33,22 @@
         <h1>Midcourse Correction Calculator <small>for Kerbal Space Program</small></h1>
       </header>
       <section>
-        <div id="validationAlert" class="alert alert-error" style="display: none">
-          <button type="button" class="close" data-dismiss="alert">×</button>
+        <div id="validationAlert" class="alert alert-danger alert-dismissable" style="display: none">
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
           <strong>Error:</strong>
           <span id="validationMessage"></span>
         </div>
         <form class="form-horizontal row" id="midcourseForm">
-          <fieldset class="span6">
+          <fieldset class="col-sm-6">
             <legend>Current orbital elements</legend>
-            <div class="control-group">
-              <label class="control-label" for="sma">Semi-major axis:</label>
-              <div class="controls">
-                <div class="input-append">
-                  <input type="text" id="sma" style="width: 145px; text-align: right"></input>
-                  <div class="btn-group">
-                    <button id="smaScale" class="btn dropdown-toggle" data-toggle="dropdown" style="width: 62px">
-                      Gm <span class="caret" style="float: right"></span>
+            <div class="form-group">
+              <label class="col-sm-4" for="sma">Semi-major axis:</label>
+              <div class="col-sm-8">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="sma" style="text-align: right"></input>
+                  <div class="input-group-btn">
+                    <button id="smaScale" class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+                      Gm <span class="caret"></span>
                     </button>
                     <ul id="smaScaleMenu" class="dropdown-menu">
                       <li><a href="#">Gm </a></li>
@@ -59,55 +60,55 @@
                 </div>
               </div>
             </div>
-            <div class="control-group">
-              <label class="control-label" for="eccentricity">Eccentricity:</label>
-              <div class="controls">
-                <input type="text" id="eccentricity" style="text-align: right"></input>
+            <div class="form-group">
+              <label class="col-sm-4" for="eccentricity">Eccentricity:</label>
+              <div class="col-sm-8">
+                <input type="text" class="form-control" id="eccentricity" style="text-align: right"></input>
               </div>
             </div>
-            <div class="control-group">
-              <label class="control-label" for="inclination">Inclination:</label>
-              <div class="controls">
-                <div class="input-append">
-                  <input type="text" id="inclination" style="width: 145px; text-align: right"></input>
-                  <span class="add-on" style="width: 50px">&deg;</span>
+            <div class="form-group">
+              <label class="col-sm-4" for="inclination">Inclination:</label>
+              <div class="col-sm-8">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="inclination" style="text-align: right"></input>
+                  <span class="input-group-addon">&deg;</span>
                 </div>
               </div>
             </div>
-            <div class="control-group">
-              <label class="control-label" for="longitudeOfAscendingNode">Long. of ascending node:</label>
-              <div class="controls">
-                <div class="input-append">
-                  <input type="text" id="longitudeOfAscendingNode" style="width: 145px; text-align: right"></input>
-                  <span class="add-on" style="width: 50px">&deg;</span>
+            <div class="form-group">
+              <label class="col-sm-4" for="longitudeOfAscendingNode">Long. of ascending node:</label>
+              <div class="col-sm-8">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="longitudeOfAscendingNode" style="text-align: right"></input>
+                  <span class="input-group-addon">&deg;</span>
                 </div>
               </div>
             </div>
-            <div class="control-group">
-              <label class="control-label" for="argumentOfPeriapsis">Argument of periapsis:</label>
-              <div class="controls">
-                <div class="input-append">
-                  <input type="text" id="argumentOfPeriapsis" style="width: 145px; text-align: right"></input>
-                  <span class="add-on" style="width: 50px">&deg;</span>
+            <div class="form-group">
+              <label class="col-sm-4" for="argumentOfPeriapsis">Argument of periapsis:</label>
+              <div class="col-sm-8">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="argumentOfPeriapsis" style="text-align: right"></input>
+                  <span class="input-group-addon">&deg;</span>
                 </div>
               </div>
             </div>
-            <div class="control-group">
-              <label class="control-label" for="timeOfPeriapsisPassage">Time of periapsis passage:</label>
-              <div class="controls">
-                <div class="input-append">
-                  <input type="text" id="timeOfPeriapsisPassage" style="width: 145px; text-align: right" placeholder="year:day:hour:min:sec"></input>
-                  <span class="add-on" style="width: 50px">UT</span>
+            <div class="form-group">
+              <label class="col-sm-4" for="timeOfPeriapsisPassage">Time of periapsis passage:</label>
+              <div class="col-sm-8">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="timeOfPeriapsisPassage" style="text-align: right" placeholder="year:day:hour:min:sec"></input>
+                  <span class="input-group-addon">UT</span>
                 </div>
               </div>
             </div>
           </fieldset>
-          <fieldset class="span6">
+          <fieldset class="col-sm-6">
             <legend>Maneuver parameters</legend>
-            <div class="control-group">
-              <label class="control-label" for="referenceBodySelect">Reference body:</label>
-              <div class="controls">
-                <select id="referenceBodySelect">
+            <div class="form-group">
+              <label class="col-sm-4" for="referenceBodySelect">Reference body:</label>
+              <div class="col-sm-8">
+                <select id="referenceBodySelect" class="form-control">
 									<option>Kerbol</option>
 									<option>Eve</option>
 									<option selected>Kerbin</option>
@@ -116,40 +117,40 @@
                 </select>
               </div>
             </div>
-            <div class="control-group">
-              <label class="control-label" for="destinationSelect">Destination:</label>
-              <div class="controls">
-                <select id="destinationSelect" disabled></select>
+            <div class="form-group">
+              <label class="col-sm-4" for="destinationSelect">Destination:</label>
+              <div class="col-sm-8">
+                <select id="destinationSelect" class="form-control" disabled></select>
               </div>
             </div>
-            <div class="control-group">
-              <label class="control-label" for="burnTime">Time of maneuver:</label>
-              <div class="controls">
-                <div class="input-append">
-                  <input type="text" id="burnTime" style="width: 145px; text-align: right" placeholder="year:day:hour:min:sec"></input>
-                  <span class="add-on" style="width: 50px">UT</span>
+            <div class="form-group">
+              <label class="col-sm-4" for="burnTime">Time of maneuver:</label>
+              <div class="col-sm-8">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="burnTime" style="text-align: right" placeholder="year:day:hour:min:sec"></input>
+                  <span class="input-group-addon">UT</span>
                 </div>
               </div>
             </div>
-            <div class="control-group">
-              <label class="control-label" for="eta">Estimated time of arrival:</label>
-              <div class="controls">
-                <div class="input-append">
-                  <input type="text" id="eta" style="width: 145px; text-align: right" placeholder="year:day:hour:min:sec"></input>
-                  <span class="add-on" style="width: 50px">UT</span>
+            <div class="form-group">
+              <label class="col-sm-4" for="eta">Estimated time of arrival:</label>
+              <div class="col-sm-8">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="eta" style="text-align: right" placeholder="year:day:hour:min:sec"></input>
+                  <span class="input-group-addon">UT</span>
                 </div>
               </div>
             </div>
           </fieldset>
-          <div class="span6">
-            <div class="form-actions">
+          <div class="col-sm-6">
+            <div class="col-sm-offset-4 col-sm-8">
               <button type="submit" id="midcourseSubmit" class="btn btn-primary">Calculate Maneuver</button>
             </div>
           </div>
         </form>
         <hr>
         <div class="row">
-          <div class="span6">
+          <div class="col-sm-6">
             <h2>Basic Instructions</h2>
             <p>If you are in a transfer orbit to a celestial body, this calculator can find a correction burn to make sure you arrive at your destination as planned. You will need the complete orbital elements of your current transfer orbit as well your estimated time of arrival and when you want to perform the correction burn. You must be orbiting the same reference body as your destination for these calculations to work.</p>
             <ol>
@@ -160,25 +161,29 @@
             </ol>
             <p>If you need to make another correction keep in mind that each burn will change your orbital elements so they will need be re-entered.</p>
           </div>
-          <div class="span6">
-            <div id="burnDetails" class="well" style="display: none">
-              <h4>Burn details</h4>
-              <dl class="dl-horizontal">
-                <dt>Pitch</dt>
-                <dd id="burnPitch"></dd>
-                <dt>Heading</dt>
-                <dd id="burnHeading"></dd>
-                <dt>Delta-v</dt>
-                <dd id="burnDeltaV"></dd>
-                <dt>Prograde delta-v</dt>
-                <dd id="progradeDeltaV"></dd>
-                <dt>Normal delta-v</dt>
-                <dd id="normalDeltaV"></dd>
-                <dt>Radial delta-v</dt>
-                <dd id="radialDeltaV"></dd>
-                <dt>Time of arrival</dt>
-                <dd id="arrivalTime"></dd>
-              </dl>
+          <div class="col-sm-6">
+            <div id="burnDetails" class="panel panel-primary" style="display: none;">
+              <div class="panel-heading">
+                <h4>Burn details</h4>
+              </div>
+              <div class="panel-body">
+                <dl class="dl-horizontal">
+                  <dt>Pitch</dt>
+                  <dd id="burnPitch"></dd>
+                  <dt>Heading</dt>
+                  <dd id="burnHeading"></dd>
+                  <dt>Delta-v</dt>
+                  <dd id="burnDeltaV"></dd>
+                  <dt>Prograde delta-v</dt>
+                  <dd id="progradeDeltaV"></dd>
+                  <dt>Normal delta-v</dt>
+                  <dd id="normalDeltaV"></dd>
+                  <dt>Radial delta-v</dt>
+                  <dd id="radialDeltaV"></dd>
+                  <dt>Time of arrival</dt>
+                  <dd id="arrivalTime"></dd>
+                </dl>
+              </div>
             </div>
           </div>
         </div>
