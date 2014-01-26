@@ -327,18 +327,48 @@ updateAdvancedControls = ->
   aerobrake = $('#useAtmoForInsertion').is(":checked") && !$('#useAtmoForInsertion').attr("disabled")
   $('#finalOrbit').attr("disabled", aerobrake)
 
-@prepareOrigins = -> #Globalized so bodies can be added in the console
-  o = $('#originSelect')
-  o.empty()
-  (listBody = ( (body, elem) ->
-    for k, v of CelestialBody when v?.orbit?.referenceBody == body
-      group = $('<optgroup>')
-      listBody(v, group)
-      elem.append($('<option>').text(k))
-      if group.children().size() > 0
-        group.attr('label', k + '\'s Moons')
-        elem.append(group)
-  ))(CelestialBody.Kerbol, o)
+window.prepareOrigins = prepareOrigins = -> # Globalized so bodies can be added in the console
+  originSelect = $('#originSelect')
+  referenceBodySelect = $('#referenceBodySelect')
+  
+  # Reset the origin and reference body select boxes
+  originSelect .empty()
+  referenceBodySelect.empty()
+  
+  # Add Kerbol to the reference body select box
+  $('<option>').text('Kerbol').appendTo(referenceBodySelect)
+  
+  # Add other all known bodies to both select boxes
+  listBody = (referenceBody, originGroup, referenceBodyGroup) ->
+    for name, body of CelestialBody when body?.orbit?.referenceBody == referenceBody
+      originGroup.append($('<option>').text(name))
+      if +body.mass != 0
+        referenceBodyGroup.append($('<option>').text(name))
+        listBody(body, originGroup, referenceBodyGroup)
+  
+  addPlanetGroup = (planet, group, selectBox, minChildren) ->
+    if group.children().size() >= minChildren
+      group.attr('label', planet + ' System')
+        .prepend($('<option>').text(planet))
+        .appendTo(selectBox)
+    else
+      $('<option>').text(planet).appendTo(selectBox)
+  
+  for name, body of CelestialBody when body?.orbit?.referenceBody == CelestialBody.Kerbol
+    if +body.mass == 0
+      $('<option>').text(name).appendTo(originSelect)
+    else
+      originGroup = $('<optgroup>')
+      referenceBodyGroup = $('<optgroup>')
+      
+      listBody(body, originGroup, referenceBodyGroup)
+      
+      addPlanetGroup(name, originGroup, originSelect, 2)
+      addPlanetGroup(name, referenceBodyGroup, referenceBodySelect, 1)
+  
+  # Select Kerbin as the default origin, or the first option if Kerbin is missing
+  originSelect.val('Kerbin')
+  originSelect.prop('selectedIndex', 0) unless originSelect.val()?
 
 $(document).ready ->
   canvasContext = $('#porkchopCanvas')[0].getContext('2d')
@@ -381,7 +411,7 @@ $(document).ready ->
     s.empty()
     s.append($('<option>').text(k)) for k, v of CelestialBody when v != origin and v?.orbit?.referenceBody == referenceBody
     s.val(previousDestination)
-    s.val($('option:first', s).val()) unless s.val()?
+    s.prop('selectedIndex', 0) unless s.val()?
     s.prop('disabled', s[0].childNodes.length == 0)
     
     updateAdvancedControls()
