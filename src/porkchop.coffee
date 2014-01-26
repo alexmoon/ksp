@@ -324,7 +324,6 @@ updateAdvancedControls = ->
   $('#latestDepartureDay').val((maxDeparture / 3600 / 24 % 365 | 0) + 1)
   $('#shortestTimeOfFlight').val(minDays)
   $('#longestTimeOfFlight').val(maxDays)
-  $('#useAtmoForInsertion').attr("disabled", destination.atmPressure == 0)
   aerobrake = $('#useAtmoForInsertion').is(":checked") && !$('#useAtmoForInsertion').attr("disabled")
   $('#finalOrbit').attr("disabled", aerobrake)
 
@@ -371,6 +370,8 @@ $(document).ready ->
         showTransferDetails()
         ga('send', 'event', 'porkchop', 'click', "#{x},#{y}")
         
+  $('.altitude').tooltip(container: 'body')
+  
   $('#originSelect').change (event) ->
     origin = CelestialBody[$(this).val()]
     referenceBody = origin.orbit.referenceBody

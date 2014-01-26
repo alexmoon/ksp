@@ -409,7 +409,6 @@
     $('#latestDepartureDay').val((maxDeparture / 3600 / 24 % 365 | 0) + 1);
     $('#shortestTimeOfFlight').val(minDays);
     $('#longestTimeOfFlight').val(maxDays);
-    $('#useAtmoForInsertion').attr("disabled", destination.atmPressure === 0);
     aerobrake = $('#useAtmoForInsertion').is(":checked") && !$('#useAtmoForInsertion').attr("disabled");
     return $('#finalOrbit').attr("disabled", aerobrake);
   };
@@ -485,6 +484,9 @@
           return ga('send', 'event', 'porkchop', 'click', "" + x + "," + y);
         }
       }
+    });
+    $('.altitude').tooltip({
+      container: 'body'
     });
     $('#originSelect').change(function(event) {
       var k, origin, previousDestination, referenceBody, s, v, _ref;

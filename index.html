@@ -25,6 +25,10 @@
       dd, dt {
         margin-bottom: 5px;
       }
+      
+      input {
+        text-align: right;
+      }
     </style>
   </head>
   <body>
@@ -32,11 +36,6 @@
       <header class="page-header">
         <h1>Launch Window Planner <small>for Kerbal Space Program</small></h1>
       </header>
-      <div class="alert alert-warning alert-dismissable">
-        <button type="button" class="close" data-dismiss="alert">&times;</button>
-        <strong>Compatibility notice:</strong>
-        This tool uses advanced HTML5 features and may not work in some browsers.
-      </div>
       <section>
         <div class="row">
           <div class="col-sm-7 col-md-7 col-lg-7">
@@ -54,8 +53,8 @@
                   <label class="col-sm-4 col-md-4 control-label" for="initialOrbit">Initial orbit</label>
                   <div class="col-sm-8 col-md-8">
                     <div class="input-group">
-                      <input type="text" class="form-control" id="initialOrbit" value="100"></input>
-                      <span class="input-group-addon">km (above surface)</span>
+                      <input type="text" class="form-control" id="initialOrbit" value="100">
+                      <span class="altitude input-group-addon" data-toggle="tooltip" data-placement="right" title="Above mean surface level">km</span>
                     </div>
                   </div>
                 </div>
@@ -69,8 +68,8 @@
                   <label class="col-sm-4 col-md-4 control-label" for="finalOrbit">Final orbit</label>
                   <div class="col-sm-8 col-md-8">
                     <div class="input-group">
-                      <input type="text" class="form-control" id="finalOrbit" value="100"></input>
-                      <span class="input-group-addon">km (above surface)</span>
+                      <input type="text" class="form-control" id="finalOrbit" value="100">
+                      <span class="altitude input-group-addon" data-toggle="tooltip" data-placement="right" title="Above mean surface level">km</span>
                     </div>
                   </div>
                 </div>
@@ -78,8 +77,8 @@
                   <div class="col-sm-offset-4 col-md-offset-4 col-sm-8 col-md-8">
                     <div class="checkbox">
                       <label for="useAtmoForInsertion">
-                        <input type="checkbox" id="useAtmoForInsertion" />
-                        Aerobrake for insertion
+                        <input type="checkbox" id="useAtmoForInsertion">
+                        No insertion burn (e.g. aerocapture or fly-by)
                       </label>
                     </div>
                   </div>
@@ -89,9 +88,9 @@
                   <div class="col-sm-8 col-md-8">
                     <div class="input-group">
                       <span class="input-group-addon">Year</span>
-                      <input type="number" class="form-control" id="earliestDepartureYear" value="1" min="1" step="1"></input>
+                      <input type="number" class="form-control" id="earliestDepartureYear" value="1" min="1" step="1">
                       <span class="input-group-addon">day</span>
-                      <input type="number" class="form-control" id="earliestDepartureDay" value="1" min="1" step="1"></input>
+                      <input type="number" class="form-control" id="earliestDepartureDay" value="1" min="1" step="1">
                     </div>
                   </div>
                 </div>
@@ -115,9 +114,9 @@
                   <div class="col-sm-8 col-md-8">
                     <div class="input-group">
                       <span class="input-group-addon">Year</span>
-                      <input type="number" class="form-control" id="latestDepartureYear" value="1" min="1" step="1"></input>
+                      <input type="number" class="form-control" id="latestDepartureYear" value="1" min="1" step="1">
                       <span class="input-group-addon">day</span>
-                      <input type="number" class="form-control" id="latestDepartureDay" value="1" min="1" step="1"></input>
+                      <input type="number" class="form-control" id="latestDepartureDay" value="1" min="1" step="1">
                     </div>
                   </div>
                 </div>
@@ -125,9 +124,9 @@
                   <label class="col-sm-4 col-md-4 control-label" for="shortestTimeOfFlight">Time of flight</label>
                   <div class="col-sm-8 col-md-8">
                     <div class="input-group">
-                      <input type="text" class="form-control" id="shortestTimeOfFlight" value="1"></input>
+                      <input type="text" class="form-control" id="shortestTimeOfFlight" value="1">
                       <span class="input-group-addon">to</span>
-                      <input type="text" class="form-control" id="longestTimeOfFlight" value="1"></input>
+                      <input type="text" class="form-control" id="longestTimeOfFlight" value="1">
                       <span class="input-group-addon">days</span>
                     </div>
                   </div>
@@ -136,8 +135,14 @@
               <fieldset>
                 <div class="form-group">
                   <div class="col-sm-offset-4 col-md-offset-4 col-sm-8 col-md-8">
-                    <button type="submit" id="porkchopSubmit" class="btn btn-primary">Plot it!</button>
-                    <button type="reset" id="reset" class="btn btn-default">Reset</button>
+                    <button type="submit" id="porkchopSubmit" class="btn btn-primary">
+                      <span class="glyphicon glyphicon-circle-arrow-down"></span>
+                      Plot it!
+                    </button>
+                    <button type="reset" id="reset" class="btn btn-default">
+                      <span class="glyphicon glyphicon-repeat"></span>
+                      Reset
+                    </button>
                   </div>
                 </div>
               </fieldset>
@@ -158,7 +163,7 @@
         
         <div class="row">
           <div class="col-sm-9 col-md-7 col-lg-offset-1 col-lg-6">
-            <h4 align="center">Delta-v transfer plot</h4>
+            <h4 style="text-align: center;">Delta-v transfer plot</h4>
             <div style="position: relative">
               <canvas width="540" height="360" id="porkchopCanvas" style="cursor: crosshair"></canvas>
               <div id="porkchopProgress" style="position: absolute; top: 100px; left: 80px; width: 280px; display: none">
@@ -172,7 +177,7 @@
           <div id="transferDetails" class="col-sm-12 col-md-5 col-lg-5" style="display: none">
             <h4>Selected transfer details</h4>
             <dl class="dl-horizontal">
-              <dt width="140">Departure</dt>
+              <dt style="width: 140px;">Departure</dt>
               <dd><abbr id="departureTime"></abbr></dd>
               <dt>Arrival</dt>
               <dd><abbr id="arrivalTime"></abbr></dd>
@@ -221,7 +226,10 @@
         </div>
       </section>
       <footer>
-        <p>This project is maintained by <a href="https://github.com/alexmoon">alexmoon</a></p>
+        <p>
+          This project is maintained by <a href="https://github.com/alexmoon">alexmoon</a>.
+          Icons by <a href="http://glyphicons.com/">Glyphicons</a>.
+        </p>
         <a href="https://github.com/alexmoon/ksp"><img style="position: absolute; top: 0; right: 0; border: 0;" src="img/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"></a>
       </footer>
     </div>
