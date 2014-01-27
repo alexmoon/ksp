@@ -34,6 +34,22 @@
         text-align: left;
       }
       
+      .popover-content dl {
+        margin-bottom: 0;
+      }
+      
+      .popover-content dt {
+        width: 100px;
+        margin-bottom: 0;
+        font-weight: normal;
+        font-style: italic;
+      }
+      
+      .popover-content dd {
+        margin-left: 120px;
+        margin-bottom: 0;
+      }
+      
       .form-horizontal .form-inline .form-group {
           margin-left: 0;
           margin-right: 0;
@@ -225,7 +241,7 @@
               <li>Select the celestial body you wish to travel to.</li>
               <li>Enter the altitude of the orbit you wish to establish around your destination body. You may check the "No insertion burn" checkbox instead if you intend to perform a fly-by or aerobraking maneuver.</li>
               <li>Enter the earliest departure date to include in the plot. Generally this should be your current game time, which you can find in the tracking station in the game.</li>
-              <li>Click the "Plot it!" button. After a few seconds a plot will appear showing how much delta-v is required to reach your destination for different departure dates and times of flight. Click on any point on this plot to see full details of the selected transfer.</li>
+              <li>Click the "Plot it!" button. After a few seconds a plot will appear showing how much &#916;v is required to reach your destination for different departure dates and times of flight. Click on any point on this plot to see full details of the selected transfer.</li>
             </ol>
           </div>
         </div>
@@ -258,8 +274,11 @@
               <dd id="ejectionAngle" class="ejectionAngle"></dd>
               <dt class="ballisticTransfer">Ejection inclination</dt>
               <dd id="ejectionInclination" class="ballisticTransfer"></dd>
-              <dt>Ejection delta-v</dt>
-              <dd><abbr id="ejectionDeltaV"></abbr></dd>
+              <dt>Ejection &#916;v</dt>
+              <dd>
+                <span id="ejectionDeltaV"></span>
+                <a id="ejectionDeltaVInfo" class="glyphicon glyphicon-info-sign" href="#" data-toggle="popover" data-placement="bottom" title="Ejection burn details"></a>
+              </dd>
               <dt>Transfer periapsis</dt>
               <dd id="transferPeriapsis"></dd>
               <dt>Transfer apoapsis</dt>
@@ -274,13 +293,13 @@
               <dd id="planeChangeAngleToIntercept" class="planeChangeTransfer"></dd>
               <dt class="planeChangeTransfer">Plane change angle</dt>
               <dd id="planeChangeAngle" class="planeChangeTransfer"></dd>
-              <dt class="planeChangeTransfer">Plane change delta-v</dt>
+              <dt class="planeChangeTransfer">Plane change &#916;v</dt>
               <dd class="planeChangeTransfer"><abbr id="planeChangeDeltaV"></abbr></dd>
               <dt>Insertion inclination</dt>
               <dd id="insertionInclination"></dd>
-              <dt>Insertion delta-v</dt>
-              <dd><abbr id="insertionDeltaV"></abbr></dd>
-              <dt>Total delta-v</dt>
+              <dt>Insertion &#916;v</dt>
+              <dd id="insertionDeltaV"></dd>
+              <dt>Total &#916;v</dt>
               <dd id="totalDeltaV"></dd>
             </dl>
           </div>

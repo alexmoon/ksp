@@ -18,6 +18,7 @@ deltaVs = null
 canvasContext = null
 plotImageData = null
 selectedPoint = null
+selectedTransfer = null
 
 palette = []
 palette.push([64, i, 255]) for i in [64...69]
@@ -71,9 +72,10 @@ distanceString = (d) ->
   else
     numberWithCommas(d.toFixed()) + " m"
 
-deltaVAbbr = (el, dv, prograde, normal) ->
+deltaVAbbr = (el, dv, prograde, normal, radial) ->
   tooltip = numberWithCommas(prograde.toFixed(1)) + " m/s prograde; " +
     numberWithCommas(normal.toFixed(1)) + " m/s normal"
+  tooltip += "; " + numberWithCommas(radial.toFixed(1)) + " m/s radial" if radial?
   el.attr(title: tooltip).text(numberWithCommas(dv.toFixed()) + " m/s")
   
 angleString = (angle, precision = 0) ->
@@ -279,6 +281,7 @@ showTransferDetails = ->
     v1 = destinationOrbit.velocityAtTrueAnomaly(trueAnomaly)
   
     transfer = Orbit.transfer(transferType, originOrbit.referenceBody, t0, p0, v0, n0, t1, p1, v1, initialOrbitalVelocity, finalOrbitalVelocity, originBody)
+    selectedTransfer = transfer
   
     $('#departureTime').text(kerbalDateString(t0)).attr(title: "UT: #{t0.toFixed()}s")
     $('#arrivalTime').text(kerbalDateString(t1)).attr(title: "UT: #{t1.toFixed()}s")
@@ -294,7 +297,8 @@ showTransferDetails = ->
         $('#ejectionAngle').text(angleString(transfer.ejectionAngle) + " to prograde")
     else
       $('.ejectionAngle').hide()
-    deltaVAbbr($('#ejectionDeltaV'), transfer.ejectionDeltaV, transfer.ejectionProgradeDeltaV, transfer.ejectionNormalDeltaV)
+    $('#ejectionDeltaV').text(numberWithCommas(transfer.ejectionDeltaV.toFixed()) + " m/s")
+    $('#ejectionDeltaVInfo').popover('hide')
     $('#transferPeriapsis').text(distanceString(transfer.orbit.periapsisAltitude()))
     $('#transferApoapsis').text(distanceString(transfer.orbit.apoapsisAltitude()))
     $('#transferInclination').text(angleString(transfer.orbit.inclination, 2))
@@ -320,9 +324,9 @@ showTransferDetails = ->
     else
       $('#insertionInclination').text("N/A")
     if transfer.insertionDeltaV != 0
-      deltaVAbbr($('#insertionDeltaV'), transfer.insertionDeltaV, -transfer.insertionDeltaV, 0)
+      $('#insertionDeltaV').text(numberWithCommas(transfer.insertionDeltaV.toFixed()) + " m/s")
     else
-      $('#insertionDeltaV').attr(title: null).text("N/A")
+      $('#insertionDeltaV').text("N/A")
     $('#totalDeltaV').text(numberWithCommas(transfer.deltaV.toFixed()) + " m/s")
   
     $('#transferDetails:hidden').fadeIn()
@@ -433,6 +437,30 @@ $(document).ready ->
         ga('send', 'event', 'porkchop', 'click', "#{x},#{y}")
         
   $('.altitude').tooltip(container: 'body')
+  
+  ejectionDeltaVInfoContent = ->
+    list = $("<dl>")
+    $("<dt>").text("Prograde \u0394v").appendTo(list)
+    $("<dd>").text(numberWithCommas(selectedTransfer.ejectionProgradeDeltaV.toFixed(1)) + " m/s").appendTo(list)
+    $("<dt>").text("Normal \u0394v").appendTo(list)
+    $("<dd>").text(numberWithCommas(selectedTransfer.ejectionNormalDeltaV.toFixed(1)) + " m/s").appendTo(list)
+    
+    if selectedTransfer.ejectionRadialDeltaV?
+      $("<dt>").text("Radial \u0394v").appendTo(list)
+      $("<dd>").text(numberWithCommas(selectedTransfer.ejectionRadialDeltaV.toFixed(1)) + " m/s").appendTo(list)
+      
+    if selectedTransfer.ejectionPitch?
+      $("<dd>").html("&nbsp;").appendTo(list) # Spacer
+      $("<dt>").text("Pitch").appendTo(list)
+      $("<dd>").text(angleString(selectedTransfer.ejectionPitch, 2)).appendTo(list)
+      $("<dt>").text("Heading").appendTo(list)
+      $("<dd>").text(angleString(selectedTransfer.ejectionHeading, 2)).appendTo(list)
+    
+    list
+    
+  $('#ejectionDeltaVInfo').popover(html: true, content: ejectionDeltaVInfoContent)
+    .click((event) -> event.preventDefault()).on 'show.bs.popover', ->
+      $(this).next().find('.popover-content').html(ejectionDeltaVInfoContent())
   
   $('#originSelect').change (event) ->
     origin = CelestialBody[$(this).val()]

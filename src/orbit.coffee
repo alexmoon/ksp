@@ -444,8 +444,21 @@ Orbit.transfer = (transferType, referenceBody, t0, p0, v0, n0, t1, p1, v1, initi
       e = r * v1 * v1 / mu - 1 # Eq. 4.30 simplified for a flight path angle of 0
       transfer.ejectionAngle = ejectionAngle(ejectionDeltaVector, e, normalize(v0))
     else
-      transfer.ejectionNormalDeltaV = ejectionDeltaV * Math.sin(ejectionInclination)
-      transfer.ejectionProgradeDeltaV = ejectionDeltaV * Math.cos(ejectionInclination)
+      positionDirection = numeric.divVS(p0, numeric.norm2(p0))
+      progradeDirection = numeric.divVS(v0, numeric.norm2(v0))
+      burnDirection = numeric.divVS(ejectionDeltaVector, ejectionDeltaV)
+      
+      transfer.ejectionPitch = Math.asin(numeric.dot(burnDirection, positionDirection))
+      transfer.ejectionHeading = angleInPlane([0,0,1], burnDirection, positionDirection)
+      
+      progradeDeltaV = numeric.dot(ejectionDeltaVector, progradeDirection)
+      normalDeltaV = numeric.dot(ejectionDeltaVector, n0)
+      radialDeltaV = Math.sqrt(ejectionDeltaV*ejectionDeltaV - progradeDeltaV*progradeDeltaV - normalDeltaV*normalDeltaV)
+      radialDeltaV = -radialDeltaV if numeric.dot(crossProduct(burnDirection, progradeDirection), n0) < 0
+      
+      transfer.ejectionProgradeDeltaV = progradeDeltaV
+      transfer.ejectionNormalDeltaV = normalDeltaV
+      transfer.ejectionRadialDeltaV = radialDeltaV
   
   transfer
 
