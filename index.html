@@ -29,6 +29,46 @@
       input {
         text-align: right;
       }
+      
+      #bodyName {
+        text-align: left;
+      }
+      
+      .form-horizontal .form-inline .form-group {
+          margin-left: 0;
+          margin-right: 0;
+      }
+      
+      @media screen and (min-width: 768px) {
+        .form-inline select {
+          min-width: 12em;
+        }
+      }
+      
+      @media screen and (min-width: 992px) {
+        .form-inline select {
+          min-width: 9em;
+        }
+      }
+      
+      @media screen and (min-width: 1200px) {
+        .form-inline select {
+          min-width: 14.5em;
+        }
+      }
+      
+      @media screen and (min-width: 768px) and (max-width: 992px) {
+          .hidden-sm-inline {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+          }
+      }
     </style>
   </head>
   <body>
@@ -45,8 +85,22 @@
                 <div class="form-group">
                   <label class="col-sm-4 col-md-4 control-label" for="originSelect">Origin</label>
                   <div class="col-sm-8 col-md-8">
-                    <select id="originSelect" class="form-control">
-                    </select>
+                    <div class="form-inline">
+                      <div class="form-group">
+                        <select id="originSelect" class="form-control">
+                        </select>
+                      </div>
+                      <div class="btn-group pull-right">
+                        <button id="originEditBtn" type="button" class="btn btn-default">
+                          <span class="glyphicon glyphicon-edit"></span>
+                          <span class="hidden-sm-inline">Edit orbit</span>
+                        </button>
+                        <button id="originAddBtn" type="button" class="btn btn-default">
+                          <span class="glyphicon glyphicon-plus"></span>
+                          <span class="hidden-sm-inline">Add body</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div class="form-group">
@@ -61,7 +115,22 @@
                 <div class="form-group">
                   <label class="col-sm-4 col-md-4 control-label" for="destinationSelect">Destination</label>
                   <div class="col-sm-8 col-md-8">
-                    <select id="destinationSelect" class="form-control" disabled></select>
+                    <div class="form-inline">
+                      <div class="form-group">
+                        <select id="destinationSelect" class="form-control" disabled>
+                        </select>
+                      </div>
+                      <div class="btn-group pull-right">
+                        <button id="destinationEditBtn" type="button" class="btn btn-default">
+                          <span class="glyphicon glyphicon-edit"></span>
+                          <span class="hidden-sm-inline">Edit orbit</span>
+                        </button>
+                        <button id="destinationAddBtn" type="button" class="btn btn-default">
+                          <span class="glyphicon glyphicon-plus"></span>
+                          <span class="hidden-sm-inline">Add body</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div class="form-group">
@@ -76,8 +145,8 @@
                 <div class="form-group">
                   <div class="col-sm-offset-4 col-md-offset-4 col-sm-8 col-md-8">
                     <div class="checkbox">
-                      <label for="useAtmoForInsertion">
-                        <input type="checkbox" id="useAtmoForInsertion">
+                      <label for="noInsertionBurnCheckbox">
+                        <input type="checkbox" id="noInsertionBurnCheckbox">
                         No insertion burn (e.g. aerocapture or fly-by)
                       </label>
                     </div>
@@ -154,7 +223,7 @@
               <li>Select the celestial body you will be departing from.</li>
               <li>Enter the altitude of your parking orbit around that body. This is assumed to be a circular, equatorial orbit.</li>
               <li>Select the celestial body you wish to travel to.</li>
-              <li>Enter the altitude of the orbit you wish to establish around your destination body. You may leave this blank or check the "No insertion burn" checkbox if you intend to perform a fly-by or aerobraking maneuver.</li>
+              <li>Enter the altitude of the orbit you wish to establish around your destination body. You may check the "No insertion burn" checkbox instead if you intend to perform a fly-by or aerobraking maneuver.</li>
               <li>Enter the earliest departure date to include in the plot. Generally this should be your current game time, which you can find in the tracking station in the game.</li>
               <li>Click the "Plot it!" button. After a few seconds a plot will appear showing how much delta-v is required to reach your destination for different departure dates and times of flight. Click on any point on this plot to see full details of the selected transfer.</li>
             </ol>
@@ -177,7 +246,7 @@
           <div id="transferDetails" class="col-sm-12 col-md-5 col-lg-5" style="display: none">
             <h4>Selected transfer details</h4>
             <dl class="dl-horizontal">
-              <dt style="width: 140px;">Departure</dt>
+              <dt>Departure</dt>
               <dd><abbr id="departureTime"></abbr></dd>
               <dt>Arrival</dt>
               <dd><abbr id="arrivalTime"></abbr></dd>
@@ -233,6 +302,149 @@
         <a href="https://github.com/alexmoon/ksp"><img style="position: absolute; top: 0; right: 0; border: 0;" src="img/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"></a>
       </footer>
     </div>
+    <form id="bodyForm" class="form-horizontal modal fade" tabindex="-1" role="dialog">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+            <h4>New Orbital Body</h4>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="col-sm-5 control-label" for="bodyType">Body type</label>
+              <div class="col-sm-7">
+                <ul id="bodyType" class="nav nav-pills">
+                  <li class="active">
+                    <a href="#planetFields">Planetary body</a>
+                  </li>
+                  <li>
+                    <a href="#vesselFields">Vessel</a>
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="col-sm-5 control-label" for="bodyName">Name</label>
+              <div class="col-sm-7">
+                <input id="bodyName" class="form-control" type="text">
+                <span class="help-block"></span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="col-sm-5 control-label" for="referenceBodySelect">Reference body</label>
+              <div class="col-sm-7">
+                <select id="referenceBodySelect" class="form-control">
+									<option>Kerbol</option>
+									<option>Eve</option>
+									<option selected>Kerbin</option>
+									<option>Duna</option>
+                  <option>Jool</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="col-sm-5 control-label" for="semiMajorAxis">Semi-major axis</label>
+              <div class="col-sm-7">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="semiMajorAxis">
+                  <span class="input-group-addon">km</span>
+                </div>
+                <span class="help-block"></span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="col-sm-5 control-label" for="eccentricity">Eccentricity</label>
+              <div class="col-sm-7">
+                <input type="text" class="form-control" id="eccentricity">
+                <span class="help-block"></span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="col-sm-5 control-label" for="inclination">Inclination</label>
+              <div class="col-sm-7">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="inclination">
+                  <span class="input-group-addon">&deg;</span>
+                </div>
+                <span class="help-block"></span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="col-sm-5 control-label" for="longitudeOfAscendingNode">Longitude of ascending node</label>
+              <div class="col-sm-7">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="longitudeOfAscendingNode">
+                  <span class="input-group-addon">&deg;</span>
+                </div>
+                <span class="help-block"></span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="col-sm-5 control-label" for="argumentOfPeriapsis">Argument of periapsis</label>
+              <div class="col-sm-7">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="argumentOfPeriapsis">
+                  <span class="input-group-addon">&deg;</span>
+                </div>
+                <span class="help-block"></span>
+              </div>
+            </div>
+            <div class="tab-content">
+              <fieldset id="planetFields" class="tab-pane active">
+                <div class="form-group">
+                  <label class="col-sm-5 control-label" for="meanAnomalyAtEpoch">Mean anomaly at epoch</label>
+                  <div class="col-sm-7">
+                    <input type="text" class="form-control" id="meanAnomalyAtEpoch">
+                    <span class="help-block"></span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="col-sm-5 control-label" for="planetMass">Mass</label>
+                  <div class="col-sm-7">
+                    <div class="input-group">
+                      <input type="text" class="form-control" id="planetMass">
+                      <span class="input-group-addon">kg</span>
+                    </div>
+                    <span class="help-block"></span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="col-sm-5 control-label" for="planetRadius">Radius</label>
+                  <div class="col-sm-7">
+                    <div class="input-group">
+                      <input type="text" class="form-control" id="planetRadius">
+                      <span class="input-group-addon">km</span>
+                    </div>
+                    <span class="help-block"></span>
+                  </div>
+                </div>
+              </fieldset>
+              <fieldset id="vesselFields" class="tab-pane">
+                <div class="form-group">
+                  <label class="col-sm-5 control-label" for="timeOfPeriapsisPassage">Time of periapsis passage</label>
+                  <div class="col-sm-7">
+                    <div class="input-group">
+                      <input type="text" class="form-control" id="timeOfPeriapsisPassage" placeholder="year/day hour:min:sec">
+                      <span class="input-group-addon">UT</span>
+                    </div>
+                    <span class="help-block"></span>
+                  </div>
+                </div>
+              </fieldset>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">
+              Cancel
+            </button>
+            <button id="bodySaveBtn" type="button" class="btn btn-primary">
+              <span class="glyphicon glyphicon-save"></span>
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
     <script>
       (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
       (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),

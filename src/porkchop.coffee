@@ -30,6 +30,8 @@ clamp = (n, min, max) -> Math.max(min, Math.min(n, max))
 
 sign = (x) -> if x < 0 then -1 else 1
 
+isBlank = (str) -> !/\S/.test(str)
+
 numberWithCommas = (n) ->
   n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 
@@ -76,6 +78,29 @@ deltaVAbbr = (el, dv, prograde, normal) ->
   
 angleString = (angle, precision = 0) ->
   (angle * 180 / Math.PI).toFixed(precision) + String.fromCharCode(0x00b0)
+
+shortKerbalDateString = (t) ->
+  year = ((t / (365 * 24 * 3600)) | 0) + 1
+  t %= (365 * 24 * 3600)
+  day = ((t / (24 * 3600)) | 0) + 1
+  t %= (24 * 3600)
+  "#{year}/#{day} #{hourMinSec(t)}"
+
+dateFromString = (dateString) ->
+  componentScales = [365, 24, 60, 60]
+  
+  components = dateString.match(/(\d+)\/(\d+)\s+(\d+):(\d+):(\d+)/)
+  components.shift()
+  components = components.reverse()
+  
+  time = 0
+  scale = 1
+  for c in components
+    c = c - 1 if scale > 3600
+    time += scale * c
+    break if componentScales.length == 0
+    scale *= componentScales.pop()
+  time
 
 worker = new Worker("javascripts/porkchopworker.js")
 
@@ -312,20 +337,27 @@ updateAdvancedControls = ->
   hohmannTransferTime = hohmannTransfer.period() / 2
   synodicPeriod = Math.abs(1 / (1 / destination.orbit.period() - 1 / origin.orbit.period()))
   
+  departureRange = Math.min(2 * synodicPeriod, 2 * origin.orbit.period()) / (24 * 3600)
+  if departureRange < 0.1
+    departureRange = +departureRange.toFixed(2)
+  else if departureRange < 1
+    departureRange = +departureRange.toFixed(1)
+  else
+    departureRange = +departureRange.toFixed()
   minDeparture = ($('#earliestDepartureYear').val() - 1) * 365 + ($('#earliestDepartureDay').val() - 1)
-  minDeparture *= 24 * 3600
-  maxDeparture = minDeparture + Math.min(2 * synodicPeriod, 2 * origin.orbit.period())
+  maxDeparture = minDeparture + departureRange
+  
   minDays = Math.max(hohmannTransferTime - destination.orbit.period(), hohmannTransferTime / 2) / 3600 / 24
   maxDays = minDays + Math.min(2 * destination.orbit.period(), hohmannTransferTime) / 3600 / 24
   minDays = if minDays < 10 then minDays.toFixed(2) else minDays.toFixed()
   maxDays = if maxDays < 10 then maxDays.toFixed(2) else maxDays.toFixed()
   
-  $('#latestDepartureYear').val((maxDeparture / 3600 / 24 / 365 | 0) + 1)
-  $('#latestDepartureDay').val((maxDeparture / 3600 / 24 % 365 | 0) + 1)
+  $('#latestDepartureYear').val((maxDeparture / 365 | 0) + 1)
+  $('#latestDepartureDay').val((maxDeparture % 365) + 1)
   $('#shortestTimeOfFlight').val(minDays)
   $('#longestTimeOfFlight').val(maxDays)
-  aerobrake = $('#useAtmoForInsertion').is(":checked") && !$('#useAtmoForInsertion').attr("disabled")
-  $('#finalOrbit').attr("disabled", aerobrake)
+  
+  $('#finalOrbit').attr("disabled", $('#noInsertionBurnCheckbox').is(":checked")) if destination.mass?
 
 window.prepareOrigins = prepareOrigins = -> # Globalized so bodies can be added in the console
   originSelect = $('#originSelect')
@@ -342,7 +374,7 @@ window.prepareOrigins = prepareOrigins = -> # Globalized so bodies can be added 
   listBody = (referenceBody, originGroup, referenceBodyGroup) ->
     for name, body of CelestialBody when body?.orbit?.referenceBody == referenceBody
       originGroup.append($('<option>').text(name))
-      if +body.mass != 0
+      if body.mass?
         referenceBodyGroup.append($('<option>').text(name))
         listBody(body, originGroup, referenceBodyGroup)
   
@@ -355,7 +387,7 @@ window.prepareOrigins = prepareOrigins = -> # Globalized so bodies can be added 
       $('<option>').text(planet).appendTo(selectBox)
   
   for name, body of CelestialBody when body?.orbit?.referenceBody == CelestialBody.Kerbol
-    if +body.mass == 0
+    if !body.mass?
       $('<option>').text(name).appendTo(originSelect)
     else
       originGroup = $('<optgroup>')
@@ -406,6 +438,8 @@ $(document).ready ->
     origin = CelestialBody[$(this).val()]
     referenceBody = origin.orbit.referenceBody
     
+    $('#initialOrbit').attr("disabled", !origin.mass?)
+    
     s = $('#destinationSelect')
     previousDestination = s.val()
     s.empty()
@@ -417,14 +451,16 @@ $(document).ready ->
     updateAdvancedControls()
   
   $('#destinationSelect').change (event) ->
+    $('#finalOrbit').attr("disabled", !CelestialBody[$(this).val()].mass?)
     updateAdvancedControls()
     
   $('#originSelect').change()
   $('#destinationSelect').val('Duna')
   $('#destinationSelect').change()
   
-  $('#useAtmoForInsertion').change (event) ->
-    $('#finalOrbit').attr("disabled", $('#useAtmoForInsertion').is(":checked"))
+  $('#noInsertionBurnCheckbox').change (event) ->
+    if CelestialBody[$('#destinationSelect').val()].mass?
+      $('#finalOrbit').attr("disabled", $(this).is(":checked"))
   
   $('#showAdvancedControls').click (event) ->
     $this = $(this)
@@ -483,19 +519,17 @@ $(document).ready ->
     originBody = CelestialBody[originBodyName]
     destinationBody = CelestialBody[destinationBodyName]
     
-    if +initialOrbit == 0
+    if !originBody.mass? or +initialOrbit == 0
       initialOrbitalVelocity = 0
     else
       initialOrbitalVelocity = originBody.circularOrbitVelocity(initialOrbit * 1e3)
         
-    aerobrake = ($('#useAtmoForInsertion').is(":checked") && !$('#useAtmoForInsertion').attr("disabled"))
-    if finalOrbit and !aerobrake
-      if +finalOrbit == 0
-        finalOrbitalVelocity = 0
-      else
-        finalOrbitalVelocity = destinationBody.circularOrbitVelocity(finalOrbit * 1e3)
-    else
+    if $('#noInsertionBurnCheckbox').is(":checked")
       finalOrbitalVelocity = null
+    else if !destinationBody.mass? or +finalOrbit == 0
+      finalOrbitalVelocity = 0
+    else
+      finalOrbitalVelocity = destinationBody.circularOrbitVelocity(finalOrbit * 1e3)
     
     earliestDeparture = ($('#earliestDepartureYear').val() - 1) * 365 + ($('#earliestDepartureDay').val() - 1)
     earliestDeparture *= 24 * 3600
@@ -538,3 +572,216 @@ $(document).ready ->
     description += " @#{+finalOrbit}km" if finalOrbit
     description += " after day #{earliestDeparture / (24 * 3600)} via #{$('#transferTypeSelect option:selected').text()} transfer"
     ga('send', 'event', 'porkchop', 'submit', description)
+
+  addBodyForm = (referenceBody) ->
+    $('#bodyForm .form-group').removeClass('has-error')
+    $('#bodyForm .help-block').hide()
+    
+    $('#bodyType a[href="#planetFields"]').tab('show')
+    
+    if referenceBody?
+      $('#referenceBodySelect').val(referenceBody.name()).prop('disabled', true)
+      $('#bodyForm .modal-header h4').text("New destination orbiting #{referenceBody.name()}")
+    else
+      $('#referenceBodySelect').val('Kerbol').prop('disabled', false)
+      $('#bodyForm .modal-header h4').text("New origin body")
+    
+    $('#bodyName').val('').removeData('originalValue')
+    $('#semiMajorAxis,#eccentricity,#inclination,#longitudeOfAscendingNode,#argumentOfPeriapsis,#meanAnomalyAtEpoch,#planetMass,#planetRadius,#timeOfPeriapsisPassage').val('')
+    
+    $('#bodyForm').modal()
+    
+  editBodyForm = (body, fixedReferenceBody = false) ->
+    $('#bodyForm .form-group').removeClass('has-error')
+    $('#bodyForm .help-block').hide()
+    
+    orbit = body.orbit
+    if body.mass?
+      $('#bodyType a[href="#planetFields"]').tab('show')
+      $('#vesselFields input').val('')
+      $('#meanAnomalyAtEpoch').val(orbit.meanAnomalyAtEpoch)
+      $('#planetMass').val(body.mass)
+      $('#planetRadius').val(body.radius / 1000)
+    else
+      $('#bodyType a[href="#vesselFields"]').tab('show')
+      $('#planetFields input').val('')
+      $('#timeOfPeriapsisPassage').val(shortKerbalDateString(orbit.timeOfPeriapsisPassage))
+    
+    $('#bodyForm .modal-header h4').text("Editing #{body.name()}")
+    $('#bodyName').val(body.name()).data('originalValue', body.name())
+    $('#referenceBodySelect').val(body.orbit.referenceBody.name()).prop('disabled', fixedReferenceBody)
+    $('#semiMajorAxis').val(orbit.semiMajorAxis / 1000)
+    $('#eccentricity').val(orbit.eccentricity)
+    $('#inclination').val(orbit.inclination * 180 / Math.PI)
+    $('#longitudeOfAscendingNode').val(orbit.longitudeOfAscendingNode * 180 / Math.PI)
+    $('#argumentOfPeriapsis').val(orbit.argumentOfPeriapsis * 180 / Math.PI)
+    
+    $('#bodyForm').modal()
+    
+  $('#originAddBtn').click (event) -> addBodyForm()
+  $('#originEditBtn').click (event) -> editBodyForm(CelestialBody[$('#originSelect').val()])
+  
+  $('#destinationAddBtn').click (event) ->
+    referenceBody = CelestialBody[$('#originSelect').val()].orbit.referenceBody
+    addBodyForm(referenceBody)
+  
+  $('#destinationEditBtn').click (event) ->
+    body = CelestialBody[$('#destinationSelect').val()]
+    editBodyForm(body, true)
+    
+  $('#bodyType a').click (event) ->
+    event.preventDefault()
+    $(this).tab('show')
+    $('#bodySaveBtn').prop('disabled', $('#bodyForm .form-group.has-error:visible').length > 0)
+  
+  $('#bodySaveBtn').click (event) ->
+    # Check all values have been provided
+    $('#bodyForm input:visible').filter(-> isBlank($(@).val()))
+      .closest('.form-group').addClass('has-error')
+      .find('.help-block').text('A value is required').show()
+    
+    # Abort if there are any outstanding errors
+    if $('#bodyForm .form-group.has-error:visible').length > 0
+      @disabled = true
+      return
+    
+    # Collect the form values
+    name = $('#bodyName').val()
+    originalName = $('#bodyName').data('originalValue')
+    
+    referenceBody = CelestialBody[$('#referenceBodySelect').val()]
+    semiMajorAxis = +$('#semiMajorAxis').val() * 1000
+    eccentricity = +$('#eccentricity').val()
+    inclination = +$('#inclination').val()
+    longitudeOfAscendingNode = +$('#longitudeOfAscendingNode').val()
+    argumentOfPeriapsis = +$('#argumentOfPeriapsis').val()
+    if $('#planetFields').is(':visible')
+      meanAnomalyAtEpoch = +$('#meanAnomalyAtEpoch').val()
+      mass = +$('#planetMass').val()
+      radius = +$('#planetRadius').val() * 1000
+    else
+      timeOfPeriapsisPassage = dateFromString($('#timeOfPeriapsisPassage').val())
+    
+    # Create the orbit and celestial body
+    orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination,
+      longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch, timeOfPeriapsisPassage)
+      
+    delete CelestialBody[originalName] if originalName?
+    CelestialBody[name] = new CelestialBody(mass, radius, null, orbit)
+    
+    # Update the origin and destination select boxes
+    if $('#referenceBodySelect').prop('disabled')
+      originalOrigin = $('#originSelect').val()
+      prepareOrigins()
+      $('#originSelect').val(originalOrigin).change()
+      $('#destinationSelect').val(name).change()
+    else
+      originalDestination = $('#destinationSelect').val()
+      prepareOrigins()
+      $('#originSelect').val(name).change()
+      if CelestialBody[originalDestination].orbit.referenceBody == referenceBody
+        $('#destinationSelect').val(originalDestination).change()
+    updateAdvancedControls()
+    
+    # Close the modal
+    $('#bodyForm').modal('hide')
+
+  # Body form input validation
+  
+  $('#bodyName').blur (event) ->
+    $this = $(this)
+    val = $this.val().trim()
+    if isBlank(val)
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text('A name is required').show()
+    else if val != $this.data('originalValue') and val of CelestialBody
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text("A body named #{val} already exists").show()
+    else
+      $this.closest('.form-group').removeClass('has-error')
+        .find('.help-block').hide()
+    $('#bodySaveBtn').prop('disabled', $('#bodyForm .form-group.has-error:visible').length > 0)
+    
+  $('#semiMajorAxis,#planetMass,#planetRadius').blur (event) ->
+    $this = $(this)
+    val = $this.val()
+    if isNaN(val) or isBlank(val)
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text('Must be a number').show()
+    else if val <= 0
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text('Must be greater than 0').show()
+    else
+      $this.closest('.form-group').removeClass('has-error')
+        .find('.help-block').hide()
+    $('#bodySaveBtn').prop('disabled', $('#bodyForm .form-group.has-error:visible').length > 0)
+
+  $('#eccentricity').blur (event) ->
+    $this = $(this)
+    val = $this.val()
+    if isNaN(val) or isBlank(val)
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text('Must be a number').show()
+    else if val < 0 or val >= 1
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text('Must be between 0 and 1 (hyperbolic orbits are not supported)').show()
+    else
+      $this.closest('.form-group').removeClass('has-error')
+        .find('.help-block').hide()
+    $('#bodySaveBtn').prop('disabled', $('#bodyForm .form-group.has-error:visible').length > 0)
+
+  $('#inclination').blur (event) ->
+    $this = $(this)
+    val = $this.val()
+    if isNaN(val) or isBlank(val)
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text('Must be a number').show()
+    else if val < 0 or val > 180
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text("Must be between 0\u00B0 and 180\u00B0").show()
+    else
+      $this.closest('.form-group').removeClass('has-error')
+        .find('.help-block').hide()
+    $('#bodySaveBtn').prop('disabled', $('#bodyForm .form-group.has-error:visible').length > 0)
+
+  $('#longitudeOfAscendingNode,#argumentOfPeriapsis').blur (event) ->
+    $this = $(this)
+    val = $this.val()
+    if isNaN(val) or isBlank(val)
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text('Must be a number').show()
+    else if val < 0 or val > 360
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text("Must be between 0\u00B0 and 360\u00B0").show()
+    else
+      $this.closest('.form-group').removeClass('has-error')
+        .find('.help-block').hide()
+    $('#bodySaveBtn').prop('disabled', $('#bodyForm .form-group.has-error:visible').length > 0)
+
+  $('#meanAnomalyAtEpoch').blur (event) ->
+    $this = $(this)
+    val = $this.val()
+    if isNaN(val) or isBlank(val)
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text('Must be a number').show()
+    else if val < 0 or val > 2 * Math.PI
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text("Must be between 0 and 2\u03c0 (6.28\u2026)").show()
+    else
+      $this.closest('.form-group').removeClass('has-error')
+        .find('.help-block').hide()
+    $('#bodySaveBtn').prop('disabled', $('#bodyForm .form-group.has-error:visible').length > 0)
+
+  $('#timeOfPeriapsisPassage').blur (event) ->
+    $this = $(this)
+    val = $this.val()
+    if isBlank(val)
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text('Must be a Kerbal date').show()
+    else if !/^\s*\d*[1-9]\d*\/\d*[1-9]\d*\s+\d+:\d+:\d+\s*$/.test(val)
+      $this.closest('.form-group').addClass('has-error')
+        .find('.help-block').text('Must be a valid Kerbal date: year/day hour:min:sec').show()
+    else
+      $this.closest('.form-group').removeClass('has-error')
+        .find('.help-block').hide()
+    $('#bodySaveBtn').prop('disabled', $('#bodyForm .form-group.has-error:visible').length > 0)
