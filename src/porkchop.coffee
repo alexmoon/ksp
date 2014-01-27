@@ -376,7 +376,10 @@ window.prepareOrigins = prepareOrigins = -> # Globalized so bodies can be added 
   
   # Add other all known bodies to both select boxes
   listBody = (referenceBody, originGroup, referenceBodyGroup) ->
-    for name, body of CelestialBody when body?.orbit?.referenceBody == referenceBody
+    children = Object.keys(referenceBody.children())
+    children.sort((a,b) -> CelestialBody[a].orbit.semiMajorAxis - CelestialBody[b].orbit.semiMajorAxis)
+    for name in children
+      body = CelestialBody[name]
       originGroup.append($('<option>').text(name))
       if body.mass?
         referenceBodyGroup.append($('<option>').text(name))
@@ -390,7 +393,10 @@ window.prepareOrigins = prepareOrigins = -> # Globalized so bodies can be added 
     else
       $('<option>').text(planet).appendTo(selectBox)
   
-  for name, body of CelestialBody when body?.orbit?.referenceBody == CelestialBody.Kerbol
+  bodies = Object.keys(CelestialBody.Kerbol.children())
+  bodies.sort((a,b) -> CelestialBody[a].orbit.semiMajorAxis - CelestialBody[b].orbit.semiMajorAxis)
+  for name in bodies
+    body = CelestialBody[name]
     if !body.mass?
       $('<option>').text(name).appendTo(originSelect)
     else
@@ -471,7 +477,9 @@ $(document).ready ->
     s = $('#destinationSelect')
     previousDestination = s.val()
     s.empty()
-    s.append($('<option>').text(k)) for k, v of CelestialBody when v != origin and v?.orbit?.referenceBody == referenceBody
+    bodies = Object.keys(referenceBody.children())
+    bodies.sort((a,b) -> CelestialBody[a].orbit.semiMajorAxis - CelestialBody[b].orbit.semiMajorAxis)
+    s.append($('<option>').text(name)) for name in bodies when CelestialBody[name] != origin
     s.val(previousDestination)
     s.prop('selectedIndex', 0) unless s.val()?
     s.prop('disabled', s[0].childNodes.length == 0)
@@ -693,9 +701,12 @@ $(document).ready ->
     # Create the orbit and celestial body
     orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination,
       longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch, timeOfPeriapsisPassage)
-      
-    delete CelestialBody[originalName] if originalName?
-    CelestialBody[name] = new CelestialBody(mass, radius, null, orbit)
+    
+    if originalName?
+      originalBody = CelestialBody[originalName]
+      delete CelestialBody[originalName]
+    newBody = CelestialBody[name] = new CelestialBody(mass, radius, null, orbit)
+    body.orbit.referenceBody = newBody for k, body of originalBody.children() if originalBody?
     
     # Update the origin and destination select boxes
     if $('#referenceBodySelect').prop('disabled')

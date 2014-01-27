@@ -464,7 +464,7 @@
   };
 
   window.prepareOrigins = prepareOrigins = function() {
-    var addPlanetGroup, body, listBody, name, originGroup, originSelect, referenceBodyGroup, referenceBodySelect, _ref;
+    var addPlanetGroup, bodies, body, listBody, name, originGroup, originSelect, referenceBodyGroup, referenceBodySelect, _len, _n;
 
     originSelect = $('#originSelect');
     referenceBodySelect = $('#referenceBodySelect');
@@ -472,14 +472,16 @@
     referenceBodySelect.empty();
     $('<option>').text('Kerbol').appendTo(referenceBodySelect);
     listBody = function(referenceBody, originGroup, referenceBodyGroup) {
-      var body, name, _ref, _results;
+      var body, children, name, _len, _n, _results;
 
+      children = Object.keys(referenceBody.children());
+      children.sort(function(a, b) {
+        return CelestialBody[a].orbit.semiMajorAxis - CelestialBody[b].orbit.semiMajorAxis;
+      });
       _results = [];
-      for (name in CelestialBody) {
+      for (_n = 0, _len = children.length; _n < _len; _n++) {
+        name = children[_n];
         body = CelestialBody[name];
-        if (!((body != null ? (_ref = body.orbit) != null ? _ref.referenceBody : void 0 : void 0) === referenceBody)) {
-          continue;
-        }
         originGroup.append($('<option>').text(name));
         if (body.mass != null) {
           referenceBodyGroup.append($('<option>').text(name));
@@ -497,18 +499,21 @@
         return $('<option>').text(planet).appendTo(selectBox);
       }
     };
-    for (name in CelestialBody) {
+    bodies = Object.keys(CelestialBody.Kerbol.children());
+    bodies.sort(function(a, b) {
+      return CelestialBody[a].orbit.semiMajorAxis - CelestialBody[b].orbit.semiMajorAxis;
+    });
+    for (_n = 0, _len = bodies.length; _n < _len; _n++) {
+      name = bodies[_n];
       body = CelestialBody[name];
-      if ((body != null ? (_ref = body.orbit) != null ? _ref.referenceBody : void 0 : void 0) === CelestialBody.Kerbol) {
-        if (body.mass == null) {
-          $('<option>').text(name).appendTo(originSelect);
-        } else {
-          originGroup = $('<optgroup>');
-          referenceBodyGroup = $('<optgroup>');
-          listBody(body, originGroup, referenceBodyGroup);
-          addPlanetGroup(name, originGroup, originSelect, 2);
-          addPlanetGroup(name, referenceBodyGroup, referenceBodySelect, 1);
-        }
+      if (body.mass == null) {
+        $('<option>').text(name).appendTo(originSelect);
+      } else {
+        originGroup = $('<optgroup>');
+        referenceBodyGroup = $('<optgroup>');
+        listBody(body, originGroup, referenceBodyGroup);
+        addPlanetGroup(name, originGroup, originSelect, 2);
+        addPlanetGroup(name, referenceBodyGroup, referenceBodySelect, 1);
       }
     }
     originSelect.val('Kerbin');
@@ -596,7 +601,7 @@
       return $(this).next().find('.popover-content').html(ejectionDeltaVInfoContent());
     });
     $('#originSelect').change(function(event) {
-      var k, origin, previousDestination, referenceBody, s, v, _ref;
+      var bodies, name, origin, previousDestination, referenceBody, s, _len, _n;
 
       origin = CelestialBody[$(this).val()];
       referenceBody = origin.orbit.referenceBody;
@@ -604,10 +609,14 @@
       s = $('#destinationSelect');
       previousDestination = s.val();
       s.empty();
-      for (k in CelestialBody) {
-        v = CelestialBody[k];
-        if (v !== origin && (v != null ? (_ref = v.orbit) != null ? _ref.referenceBody : void 0 : void 0) === referenceBody) {
-          s.append($('<option>').text(k));
+      bodies = Object.keys(referenceBody.children());
+      bodies.sort(function(a, b) {
+        return CelestialBody[a].orbit.semiMajorAxis - CelestialBody[b].orbit.semiMajorAxis;
+      });
+      for (_n = 0, _len = bodies.length; _n < _len; _n++) {
+        name = bodies[_n];
+        if (CelestialBody[name] !== origin) {
+          s.append($('<option>').text(name));
         }
       }
       s.val(previousDestination);
@@ -826,7 +835,7 @@
       return $('#bodySaveBtn').prop('disabled', $('#bodyForm .form-group.has-error:visible').length > 0);
     });
     $('#bodySaveBtn').click(function(event) {
-      var argumentOfPeriapsis, eccentricity, inclination, longitudeOfAscendingNode, mass, meanAnomalyAtEpoch, name, orbit, originalDestination, originalName, originalOrigin, radius, referenceBody, semiMajorAxis, timeOfPeriapsisPassage;
+      var argumentOfPeriapsis, body, eccentricity, inclination, k, longitudeOfAscendingNode, mass, meanAnomalyAtEpoch, name, newBody, orbit, originalBody, originalDestination, originalName, originalOrigin, radius, referenceBody, semiMajorAxis, timeOfPeriapsisPassage, _ref;
 
       $('#bodyForm input:visible').filter(function() {
         return isBlank($(this).val());
@@ -852,9 +861,17 @@
       }
       orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination, longitudeOfAscendingNode, argumentOfPeriapsis, meanAnomalyAtEpoch, timeOfPeriapsisPassage);
       if (originalName != null) {
+        originalBody = CelestialBody[originalName];
         delete CelestialBody[originalName];
       }
-      CelestialBody[name] = new CelestialBody(mass, radius, null, orbit);
+      newBody = CelestialBody[name] = new CelestialBody(mass, radius, null, orbit);
+      if (originalBody != null) {
+        _ref = originalBody.children();
+        for (k in _ref) {
+          body = _ref[k];
+          body.orbit.referenceBody = newBody;
+        }
+      }
       if ($('#referenceBodySelect').prop('disabled')) {
         originalOrigin = $('#originSelect').val();
         prepareOrigins();
