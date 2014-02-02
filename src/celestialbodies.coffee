@@ -22,6 +22,10 @@ HALF_PI = 0.5 * Math.PI
     result[k] = v for k, v of CelestialBody when v?.orbit?.referenceBody == this
     result
 
+CelestialBody.fromJSON = (json) ->
+  orbit = Orbit.fromJSON(json.orbit) if json.orbit?
+  new CelestialBody(json.mass, json.radius, json.siderealRotation, orbit, json.atmPressure)
+  
 CelestialBody.Kerbol = Kerbol = new CelestialBody(1.756567e+28, 2.616e+08, 432000, null)
 CelestialBody.Moho = Moho = new CelestialBody(3.6747079e21, 250000, 1210000, new Orbit(Kerbol, 5263138304, 0.2, 7.0, 70.0, 15.0, 3.14))
 CelestialBody.Eve = Eve = new CelestialBody(1.2244127e23, 700000, 80500, new Orbit(Kerbol, 9832684544, 0.01, 2.1, 15.0, 0, 3.14), 5)

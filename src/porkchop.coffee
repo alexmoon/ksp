@@ -5,8 +5,7 @@ TIC_LENGTH = 5
 
 transferType = null
 originBody = null
-originOrbit = null
-destinationOrbit = null
+destinationBody = null
 initialOrbitalVelocity = null
 finalOrbitalVelocity = null
 earliestDeparture = null
@@ -269,20 +268,15 @@ showTransferDetails = ->
     [x, y] = [selectedPoint.x, selectedPoint.y]
     
     t0 = earliestDeparture + x * xScale / PLOT_WIDTH
-    t1 = t0 + shortestTimeOfFlight + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
+    dt = shortestTimeOfFlight + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
+    t1 = t0 + dt
   
-    trueAnomaly = originOrbit.trueAnomalyAt(t0)
-    p0 = originOrbit.positionAtTrueAnomaly(trueAnomaly)
-    v0 = originOrbit.velocityAtTrueAnomaly(trueAnomaly)
-    n0 = originOrbit.normalVector()
-  
-    trueAnomaly = destinationOrbit.trueAnomalyAt(t1)
-    p1 = destinationOrbit.positionAtTrueAnomaly(trueAnomaly)
-    v1 = destinationOrbit.velocityAtTrueAnomaly(trueAnomaly)
-  
-    transfer = Orbit.transfer(transferType, originOrbit.referenceBody, t0, p0, v0, n0, t1, p1, v1, initialOrbitalVelocity, finalOrbitalVelocity, originBody)
+    transfer = Orbit.transferDetails(transferType, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity)
     selectedTransfer = transfer
   
+    originOrbit = originBody.orbit
+    destinationOrbit = destinationBody.orbit
+    
     $('#departureTime').text(kerbalDateString(t0)).attr(title: "UT: #{t0.toFixed()}s")
     $('#arrivalTime').text(kerbalDateString(t1)).attr(title: "UT: #{t1.toFixed()}s")
     $('#timeOfFlight').text(durationString(t1 - t0)).attr(title: (t1 - t0).toFixed() + "s")
@@ -577,9 +571,6 @@ $(document).ready ->
     shortestTimeOfFlight = +$('#shortestTimeOfFlight').val() * 24 * 3600
     yScale = +$('#longestTimeOfFlight').val() * 24 * 3600 - shortestTimeOfFlight
     
-    originOrbit = originBody.orbit
-    destinationOrbit = destinationBody.orbit
-    
     ctx = canvasContext
     ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT)
     ctx.clearRect(PLOT_X_OFFSET + PLOT_WIDTH + 85, 0, 65, PLOT_HEIGHT + 10)
@@ -599,7 +590,7 @@ $(document).ready ->
       
     deltaVs = null
     worker.postMessage(
-      transferType: transferType, originOrbit: originOrbit, destinationOrbit: destinationOrbit,
+      transferType: transferType, originBody: originBody, destinationBody: destinationBody,
       initialOrbitalVelocity: initialOrbitalVelocity, finalOrbitalVelocity: finalOrbitalVelocity,
       earliestDeparture: earliestDeparture, xScale: xScale,
       shortestTimeOfFlight: shortestTimeOfFlight, yScale: yScale)

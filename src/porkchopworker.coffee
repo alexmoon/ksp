@@ -2,22 +2,26 @@ importScripts('numeric-1.2.6.min.js')
 importScripts('quaternion.js')
 importScripts('lambert.js')
 importScripts('orbit.js')
+importScripts('celestialbodies.js')
 
 WIDTH = 300
 HEIGHT = 300
 
 @onmessage = (event) ->
   transferType = event.data.transferType
-  originOrbit = Orbit.fromJSON(event.data.originOrbit)
+  originBody = CelestialBody.fromJSON(event.data.originBody)
   initialOrbitalVelocity = event.data.initialOrbitalVelocity
-  destinationOrbit = Orbit.fromJSON(event.data.destinationOrbit)
+  destinationBody = CelestialBody.fromJSON(event.data.destinationBody)
   finalOrbitalVelocity = event.data.finalOrbitalVelocity
   earliestDeparture = event.data.earliestDeparture
   shortestTimeOfFlight = event.data.shortestTimeOfFlight
   xResolution = event.data.xScale / WIDTH
   yResolution = event.data.yScale / HEIGHT
-  referenceBody = originOrbit.referenceBody
   
+  originOrbit = originBody.orbit
+  destinationOrbit = destinationBody.orbit
+  
+  referenceBody = originOrbit.referenceBody
   n1 = originOrbit.normalVector()
   
   # Pre-calculate destination positions and velocities
@@ -48,7 +52,7 @@ HEIGHT = 300
       p2 = destinationOrbit.positionAtTrueAnomaly(trueAnomaly)
       v2 = destinationOrbit.velocityAtTrueAnomaly(trueAnomaly)
   
-      transfer = Orbit.transfer(transferType, referenceBody, departureTime, p1, v1, n1, arrivalTime, p2, v2, initialOrbitalVelocity, finalOrbitalVelocity)
+      transfer = Orbit.transfer(transferType, originBody, destinationBody, departureTime, timeOfFlight, initialOrbitalVelocity, finalOrbitalVelocity, p1, v1, n1, p2, v2)
       deltaVs[i++] = deltaV = transfer.deltaV
 
       if deltaV < minDeltaV
