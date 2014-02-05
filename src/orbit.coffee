@@ -362,7 +362,7 @@ Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbi
   n0 ?= originBody.orbit.normalVector()
   
   if transferType == "optimal"
-    ballisticTransfer = Orbit.transfer("ballistic", referenceBody, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity, p0, v0, n0, p1, v1)
+    ballisticTransfer = Orbit.transfer("ballistic", originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity, p0, v0, n0, p1, v1)
     return ballisticTransfer if ballisticTransfer.angle <= HALF_PI
     planeChangeTransfer = Orbit.transfer("optimalPlaneChange", originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity, p0, v0, n0, p1, v1)
     return if ballisticTransfer.deltaV < planeChangeTransfer.deltaV then ballisticTransfer else planeChangeTransfer

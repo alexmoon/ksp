@@ -534,7 +534,7 @@
       n0 = originBody.orbit.normalVector();
     }
     if (transferType === "optimal") {
-      ballisticTransfer = Orbit.transfer("ballistic", referenceBody, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity, p0, v0, n0, p1, v1);
+      ballisticTransfer = Orbit.transfer("ballistic", originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity, p0, v0, n0, p1, v1);
       if (ballisticTransfer.angle <= HALF_PI) {
         return ballisticTransfer;
       }
