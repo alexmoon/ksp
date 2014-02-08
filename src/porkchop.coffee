@@ -134,9 +134,9 @@ worker.onmessage = (event) ->
     
     $('#porkchopSubmit,#porkchopContainer button,#refineTransferBtn').prop('disabled', false)
 
-calculatePlot = ->
+calculatePlot = (erasePlot) ->
   ctx = canvasContext
-  ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT)
+  ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT) if erasePlot
   ctx.clearRect(PLOT_X_OFFSET + PLOT_WIDTH + 85, 0, 65, PLOT_HEIGHT + 10)
   ctx.clearRect(20, 0, PLOT_X_OFFSET - TIC_LENGTH - 21, PLOT_HEIGHT + TIC_LENGTH)
   ctx.clearRect(PLOT_X_OFFSET - 40, PLOT_HEIGHT + TIC_LENGTH, PLOT_WIDTH + 80, 20)
@@ -433,7 +433,7 @@ window.prepareOrigins = prepareOrigins = -> # Globalized so bodies can be added 
   originSelect.prop('selectedIndex', 0) unless originSelect.val()?
 
 $(document).ready ->
-  canvasContext = $('#porkchopCanvas')[0].getContext('2d')
+  canvasContext = document.getElementById('porkchopCanvas').getContext('2d')
   plotImageData = canvasContext.createImageData(PLOT_WIDTH, PLOT_HEIGHT)
   
   prepareCanvas()
@@ -676,7 +676,7 @@ $(document).ready ->
     shortestTimeOfFlight = +$('#shortestTimeOfFlight').val() * 24 * 3600
     yScale = +$('#longestTimeOfFlight').val() * 24 * 3600 - shortestTimeOfFlight
     
-    calculatePlot()
+    calculatePlot(true)
 
     description = "#{originBodyName} @#{+initialOrbit}km to #{destinationBodyName}"
     description += " @#{+finalOrbit}km" if finalOrbit

@@ -224,11 +224,13 @@
     }
   };
 
-  calculatePlot = function() {
+  calculatePlot = function(erasePlot) {
     var ctx, _n, _o;
 
     ctx = canvasContext;
-    ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT);
+    if (erasePlot) {
+      ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT);
+    }
     ctx.clearRect(PLOT_X_OFFSET + PLOT_WIDTH + 85, 0, 65, PLOT_HEIGHT + 10);
     ctx.clearRect(20, 0, PLOT_X_OFFSET - TIC_LENGTH - 21, PLOT_HEIGHT + TIC_LENGTH);
     ctx.clearRect(PLOT_X_OFFSET - 40, PLOT_HEIGHT + TIC_LENGTH, PLOT_WIDTH + 80, 20);
@@ -558,7 +560,7 @@
   $(document).ready(function() {
     var addBodyForm, editBodyForm, ejectionDeltaVInfoContent, porkchopDragStart, porkchopDragged;
 
-    canvasContext = $('#porkchopCanvas')[0].getContext('2d');
+    canvasContext = document.getElementById('porkchopCanvas').getContext('2d');
     plotImageData = canvasContext.createImageData(PLOT_WIDTH, PLOT_HEIGHT);
     prepareCanvas();
     prepareOrigins();
@@ -854,7 +856,7 @@
       xScale = latestDeparture - earliestDeparture;
       shortestTimeOfFlight = +$('#shortestTimeOfFlight').val() * 24 * 3600;
       yScale = +$('#longestTimeOfFlight').val() * 24 * 3600 - shortestTimeOfFlight;
-      calculatePlot();
+      calculatePlot(true);
       description = "" + originBodyName + " @" + (+initialOrbit) + "km to " + destinationBodyName;
       if (finalOrbit) {
         description += " @" + (+finalOrbit) + "km";
