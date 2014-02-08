@@ -87,6 +87,13 @@
       }
       
       a[rel="license"] img { float: right; }
+      
+      .grabbing {
+        cursor: move !important;
+        cursor: -moz-grabbing !important;
+        cursor: -webkit-grabbing !important;
+        cursor: grabbing !important;
+      }
     </style>
   </head>
   <body>
@@ -251,7 +258,7 @@
         <div class="row">
           <div class="col-sm-9 col-md-7 col-lg-offset-1 col-lg-6">
             <h4 style="text-align: center;">Delta-v transfer plot</h4>
-            <div style="position: relative">
+            <div id="porkchopContainer" style="position: relative">
               <canvas width="540" height="360" id="porkchopCanvas" style="cursor: crosshair"></canvas>
               <div id="porkchopProgress" style="position: absolute; top: 100px; left: 80px; width: 280px; display: none">
                 <h5 style="text-align: center">Calculating...</h5>
@@ -259,6 +266,14 @@
                   <div class="progress-bar" style="width: 0; transition: width 0.1s linear"></div>
                 </div>
               </div>
+              <button id="porkchopZoomIn" class="btn btn-default" style="position: absolute; top: 10px; left: 80px; padding: 3px 6px; font-size: 11px" disabled>
+                <span class="glyphicon glyphicon-plus"></span>
+                <span class="sr-only">Zoom in</span>
+              </button>
+              <button id="porkchopZoomOut" class="btn btn-default" style="position: absolute; top: 38px; left: 80px; padding: 3px 6px; font-size: 11px" disabled>
+                <span class="glyphicon glyphicon-minus"></span>
+                <span class="sr-only">Zoom out</span>
+              </button>
             </div>
           </div>
           <div id="transferDetails" class="col-sm-12 col-md-5 col-lg-5" style="display: none">

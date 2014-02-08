@@ -114,7 +114,6 @@ worker.onmessage = (event) ->
     deltaVs = new Float64Array(deltaVs) if deltaVs instanceof ArrayBuffer
     minDeltaV = event.data.minDeltaV
     maxDeltaV = 4 * minDeltaV
-    selectedPoint = event.data.minDeltaVPoint
     
     i = 0
     j = 0
@@ -130,11 +129,36 @@ worker.onmessage = (event) ->
         plotImageData.data[j++] = 255
     
     drawDeltaVScale(minDeltaV, maxDeltaV)
+    showTransferDetailsForPoint(event.data.minDeltaVPoint)
     drawPlot()
-    showTransferDetails()
     
-    $('#porkchopSubmit').prop('disabled', false)
+    $('#porkchopSubmit,#porkchopContainer button,#refineTransferBtn').prop('disabled', false)
 
+calculatePlot = ->
+  ctx = canvasContext
+  ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT)
+  ctx.clearRect(PLOT_X_OFFSET + PLOT_WIDTH + 85, 0, 65, PLOT_HEIGHT + 10)
+  ctx.clearRect(20, 0, PLOT_X_OFFSET - TIC_LENGTH - 21, PLOT_HEIGHT + TIC_LENGTH)
+  ctx.clearRect(PLOT_X_OFFSET - 40, PLOT_HEIGHT + TIC_LENGTH, PLOT_WIDTH + 80, 20)
+  
+  ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif'
+  ctx.fillStyle = 'black'
+  ctx.textAlign = 'right'
+  ctx.textBaseline = 'middle'
+  for i in [0..1.0] by 0.25
+    ctx.textBaseline = 'top' if i == 1.0
+    ctx.fillText(((shortestTimeOfFlight + i * yScale) / 3600 / 24) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT)
+  ctx.textAlign = 'center'
+  for i in [0..1.0] by 0.25
+    ctx.fillText(((earliestDeparture + i * xScale) / 3600 / 24) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3)
+    
+  deltaVs = null
+  worker.postMessage(
+    transferType: transferType, originBody: originBody, destinationBody: destinationBody,
+    initialOrbitalVelocity: initialOrbitalVelocity, finalOrbitalVelocity: finalOrbitalVelocity,
+    earliestDeparture: earliestDeparture, xScale: xScale,
+    shortestTimeOfFlight: shortestTimeOfFlight, yScale: yScale)
+  
 drawDeltaVScale = (minDeltaV, maxDeltaV) ->
   ctx = canvasContext
   ctx.save()
@@ -263,69 +287,71 @@ prepareCanvas = ->
   
   ctx.restore()
 
-showTransferDetails = ->
-  if selectedPoint?
-    [x, y] = [selectedPoint.x, selectedPoint.y]
-    
-    t0 = earliestDeparture + x * xScale / PLOT_WIDTH
-    dt = shortestTimeOfFlight + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
-    t1 = t0 + dt
+showTransferDetailsForPoint = (point) ->
+  selectedPoint = point
   
-    transfer = Orbit.transferDetails(transferType, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity)
-    selectedTransfer = transfer
+  [x, y] = [point.x, point.y]
+  t0 = earliestDeparture + x * xScale / PLOT_WIDTH
+  dt = shortestTimeOfFlight + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
   
-    originOrbit = originBody.orbit
-    destinationOrbit = destinationBody.orbit
-    
-    $('#departureTime').text(kerbalDateString(t0)).attr(title: "UT: #{t0.toFixed()}s")
-    $('#arrivalTime').text(kerbalDateString(t1)).attr(title: "UT: #{t1.toFixed()}s")
-    $('#timeOfFlight').text(durationString(t1 - t0)).attr(title: (t1 - t0).toFixed() + "s")
-    $('#phaseAngle').text(angleString(originOrbit.phaseAngle(destinationOrbit, t0), 2))
-    if transfer.ejectionAngle?
-      $('.ejectionAngle').show()
-      if destinationOrbit.semiMajorAxis < originOrbit.semiMajorAxis
-        ejectionAngle = transfer.ejectionAngle - Math.PI
-        ejectionAngle += 2 * Math.PI if ejectionAngle < 0
-        $('#ejectionAngle').text(angleString(ejectionAngle) + " to retrograde")
-      else
-        $('#ejectionAngle').text(angleString(transfer.ejectionAngle) + " to prograde")
-    else
-      $('.ejectionAngle').hide()
-    $('#ejectionDeltaV').text(numberWithCommas(transfer.ejectionDeltaV.toFixed()) + " m/s")
-    $('#ejectionDeltaVInfo').popover('hide')
-    $('#transferPeriapsis').text(distanceString(transfer.orbit.periapsisAltitude()))
-    $('#transferApoapsis').text(distanceString(transfer.orbit.apoapsisAltitude()))
-    $('#transferInclination').text(angleString(transfer.orbit.inclination, 2))
-    $('#transferAngle').text(angleString(transfer.angle))
-    
-    if transfer.planeChangeTime?
-      $('.ballisticTransfer').hide()
-      $('.planeChangeTransfer').show()
-      $('#planeChangeTime').text(kerbalDateString(transfer.planeChangeTime))
-        .attr(title: "UT: #{transfer.planeChangeTime.toFixed()}s")
-      $('#planeChangeAngleToIntercept').text(angleString(transfer.planeChangeAngleToIntercept, 2))
-      $('#planeChangeAngle').text(angleString(transfer.planeChangeAngle, 2))
-      deltaVAbbr($('#planeChangeDeltaV'), transfer.planeChangeDeltaV,
-        -transfer.planeChangeDeltaV * Math.abs(Math.sin(transfer.planeChangeAngle / 2)),
-        transfer.planeChangeDeltaV * sign(transfer.planeChangeAngle) * Math.cos(transfer.planeChangeAngle / 2))
-    else
-      $('.planeChangeTransfer').hide()
-      $('.ballisticTransfer').show()
-      $('#ejectionInclination').text(angleString(transfer.ejectionInclination, 2))
-      
-    if transfer.insertionInclination?
-      $('#insertionInclination').text(angleString(transfer.insertionInclination, 2))
-    else
-      $('#insertionInclination').text("N/A")
-    if transfer.insertionDeltaV != 0
-      $('#insertionDeltaV').text(numberWithCommas(transfer.insertionDeltaV.toFixed()) + " m/s")
-    else
-      $('#insertionDeltaV').text("N/A")
-    $('#totalDeltaV').text(numberWithCommas(transfer.deltaV.toFixed()) + " m/s")
+  transfer = Orbit.transfer(transferType, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity)
+  showTransferDetails(transfer, t0, dt)
   
-    $('#transferDetails:hidden').fadeIn()
+showTransferDetails = (transfer, t0, dt) ->
+  t1 = t0 + dt
+  transfer = Orbit.transferDetails(transfer, originBody, t0, initialOrbitalVelocity)
+  selectedTransfer = transfer
+
+  originOrbit = originBody.orbit
+  destinationOrbit = destinationBody.orbit
+  
+  $('#departureTime').text(kerbalDateString(t0)).attr(title: "UT: #{t0.toFixed()}s")
+  $('#arrivalTime').text(kerbalDateString(t1)).attr(title: "UT: #{t1.toFixed()}s")
+  $('#timeOfFlight').text(durationString(dt)).attr(title: dt.toFixed() + "s")
+  $('#phaseAngle').text(angleString(originOrbit.phaseAngle(destinationOrbit, t0), 2))
+  if transfer.ejectionAngle?
+    $('.ejectionAngle').show()
+    if destinationOrbit.semiMajorAxis < originOrbit.semiMajorAxis
+      ejectionAngle = transfer.ejectionAngle - Math.PI
+      ejectionAngle += 2 * Math.PI if ejectionAngle < 0
+      $('#ejectionAngle').text(angleString(ejectionAngle) + " to retrograde")
+    else
+      $('#ejectionAngle').text(angleString(transfer.ejectionAngle) + " to prograde")
   else
-    $('#transferDetails:visible').fadeOut()
+    $('.ejectionAngle').hide()
+  $('#ejectionDeltaV').text(numberWithCommas(transfer.ejectionDeltaV.toFixed()) + " m/s")
+  $('#ejectionDeltaVInfo').popover('hide')
+  $('#transferPeriapsis').text(distanceString(transfer.orbit.periapsisAltitude()))
+  $('#transferApoapsis').text(distanceString(transfer.orbit.apoapsisAltitude()))
+  $('#transferInclination').text(angleString(transfer.orbit.inclination, 2))
+  $('#transferAngle').text(angleString(transfer.angle))
+  
+  if transfer.planeChangeTime?
+    $('.ballisticTransfer').hide()
+    $('.planeChangeTransfer').show()
+    $('#planeChangeTime').text(kerbalDateString(transfer.planeChangeTime))
+      .attr(title: "UT: #{transfer.planeChangeTime.toFixed()}s")
+    $('#planeChangeAngleToIntercept').text(angleString(transfer.planeChangeAngleToIntercept, 2))
+    $('#planeChangeAngle').text(angleString(transfer.planeChangeAngle, 2))
+    deltaVAbbr($('#planeChangeDeltaV'), transfer.planeChangeDeltaV,
+      -transfer.planeChangeDeltaV * Math.abs(Math.sin(transfer.planeChangeAngle / 2)),
+      transfer.planeChangeDeltaV * sign(transfer.planeChangeAngle) * Math.cos(transfer.planeChangeAngle / 2))
+  else
+    $('.planeChangeTransfer').hide()
+    $('.ballisticTransfer').show()
+    $('#ejectionInclination').text(angleString(transfer.ejectionInclination, 2))
+    
+  if transfer.insertionInclination?
+    $('#insertionInclination').text(angleString(transfer.insertionInclination, 2))
+  else
+    $('#insertionInclination').text("N/A")
+  if transfer.insertionDeltaV != 0
+    $('#insertionDeltaV').text(numberWithCommas(transfer.insertionDeltaV.toFixed()) + " m/s")
+  else
+    $('#insertionDeltaV').text("N/A")
+  $('#totalDeltaV').text(numberWithCommas(transfer.deltaV.toFixed()) + " m/s")
+
+  $('#transferDetails:hidden').fadeIn()
 
 updateAdvancedControls = ->
   origin = CelestialBody[$('#originSelect').val()]
@@ -413,8 +439,15 @@ $(document).ready ->
   prepareCanvas()
   prepareOrigins()
   
+  porkchopDragStart = null
+  porkchopDragged = false
+  $('#porkchopCanvas').mousedown (event) ->
+    if event.which == 1 and deltaVs?
+      $(this).addClass('grabbing')
+      porkchopDragStart = { x: event.pageX, y: event.pageY }
+    
   $('#porkchopCanvas').mousemove (event) ->
-    if deltaVs?
+    if deltaVs? and !porkchopDragStart?
       offsetX = event.offsetX ? (event.pageX - $('#porkchopCanvas').offset().left) | 0
       offsetY = event.offsetY ? (event.pageY - $('#porkchopCanvas').offset().top) | 0
       x = offsetX - PLOT_X_OFFSET
@@ -422,20 +455,89 @@ $(document).ready ->
       pointer = { x: x, y: y } if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT
       drawPlot(pointer)
       
-  $('#porkchopCanvas').mouseleave (event) -> drawPlot()
+  $('#porkchopCanvas').mouseleave (event) ->
+    drawPlot() unless porkchopDragStart?
+    
+  $(document).mousemove (event) ->
+    if porkchopDragStart?
+      porkchopDragged = true
+      ctx = canvasContext
+      ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT)
+      
+      deltaX = event.pageX - porkchopDragStart.x
+      if deltaX > (earliestDeparture * PLOT_WIDTH) / xScale
+        deltaX = (earliestDeparture * PLOT_WIDTH) / xScale
+        porkchopDragStart.x = event.pageX - deltaX
+      deltaY = event.pageY - porkchopDragStart.y
+      if deltaY < (1 - shortestTimeOfFlight) * PLOT_HEIGHT / yScale
+        deltaY = (1 - shortestTimeOfFlight) * PLOT_HEIGHT / yScale
+        porkchopDragStart.y = event.pageY - deltaY
+      dirtyX = Math.max(-deltaX, 0)
+      dirtyY = Math.max(-deltaY, 0)
+      dirtyWidth = PLOT_WIDTH - Math.abs(deltaX)
+      dirtyHeight = PLOT_HEIGHT - Math.abs(deltaY)
+      ctx.putImageData(plotImageData, PLOT_X_OFFSET + deltaX, deltaY, dirtyX, dirtyY, dirtyWidth, dirtyHeight)
   
-  $('#porkchopCanvas').click (event) ->
-    if deltaVs?
-      offsetX = event.offsetX ? (event.pageX - $('#porkchopCanvas').offset().left) | 0
-      offsetY = event.offsetY ? (event.pageY - $('#porkchopCanvas').offset().top) | 0
-      x = offsetX - PLOT_X_OFFSET
-      y = offsetY
-      if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT and !isNaN(deltaVs[(y * PLOT_WIDTH + x) | 0])
-        selectedPoint = { x: x, y: y }
-        drawPlot(selectedPoint)
-        showTransferDetails()
-        ga('send', 'event', 'porkchop', 'click', "#{x},#{y}")
-        
+  $(document).mouseup (event) ->
+    if event.which == 1 and porkchopDragStart?
+      $('#porkchopCanvas').removeClass('grabbing')
+      if porkchopDragged
+        if porkchopDragStart.x != event.pageX or porkchopDragStart.y != event.pageY
+          # Drag end
+          deltaX = event.pageX - porkchopDragStart.x
+          deltaY = event.pageY - porkchopDragStart.y
+          earliestDeparture = Math.max(earliestDeparture - deltaX * xScale / PLOT_WIDTH, 0)
+          shortestTimeOfFlight = Math.max(shortestTimeOfFlight + deltaY * yScale / PLOT_HEIGHT, 1)
+          calculatePlot()
+        else
+          offsetX = event.offsetX ? (event.pageX - $('#porkchopCanvas').offset().left) | 0
+          offsetY = event.offsetY ? (event.pageY - $('#porkchopCanvas').offset().top) | 0
+          x = offsetX - PLOT_X_OFFSET
+          y = offsetY
+          pointer = { x: x, y: y } if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT
+          drawPlot(pointer)
+      else
+        # Click, select new transfer
+        offsetX = event.offsetX ? (event.pageX - $('#porkchopCanvas').offset().left) | 0
+        offsetY = event.offsetY ? (event.pageY - $('#porkchopCanvas').offset().top) | 0
+        x = offsetX - PLOT_X_OFFSET
+        y = offsetY
+        if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT and !isNaN(deltaVs[(y * PLOT_WIDTH + x) | 0])
+          showTransferDetailsForPoint(x: x, y: y)
+          drawPlot(x: x, y: y)
+          ga('send', 'event', 'porkchop', 'click', "#{x},#{y}")
+      
+      porkchopDragStart = null
+      porkchopDragged = false
+  
+  $('#porkchopZoomIn').click (event) ->
+    xCenter = earliestDeparture + selectedPoint.x * xScale / PLOT_WIDTH
+    yCenter = shortestTimeOfFlight + ((PLOT_HEIGHT-1) - selectedPoint.y) * yScale / PLOT_HEIGHT
+    xScale /= Math.sqrt(2)
+    yScale /= Math.sqrt(2)
+    earliestDeparture = Math.max(xCenter - xScale / 2, 0)
+    shortestTimeOfFlight = Math.max(yCenter - yScale / 2, 1)
+    
+    calculatePlot()
+  
+  $('#porkchopZoomOut').click (event) ->
+    xCenter = earliestDeparture + selectedPoint.x * xScale / PLOT_WIDTH
+    yCenter = shortestTimeOfFlight + ((PLOT_HEIGHT-1) - selectedPoint.y) * yScale / PLOT_HEIGHT
+    xScale *= Math.sqrt(2)
+    yScale *= Math.sqrt(2)
+    earliestDeparture = Math.max(xCenter - xScale / 2, 0)
+    shortestTimeOfFlight = Math.max(yCenter - yScale / 2, 1)
+    
+    calculatePlot()
+  
+  $('#refineTransferBtn').click (event) ->
+    [x, y] = [selectedPoint.x, selectedPoint.y]
+    t0 = earliestDeparture + x * xScale / PLOT_WIDTH
+    dt = shortestTimeOfFlight + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
+    
+    transfer = Orbit.refineTransfer(selectedTransfer, transferType, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity)
+    showTransferDetails(transfer, t0, dt)
+  
   $('.altitude').tooltip(container: 'body')
   
   ejectionDeltaVInfoContent = ->
@@ -449,12 +551,15 @@ $(document).ready ->
       $("<dt>").text("Radial \u0394v").appendTo(list)
       $("<dd>").text(numberWithCommas(selectedTransfer.ejectionRadialDeltaV.toFixed(1)) + " m/s").appendTo(list)
       
+    
+    $("<dd>").html("&nbsp;").appendTo(list) # Spacer
+    
     if selectedTransfer.ejectionPitch?
-      $("<dd>").html("&nbsp;").appendTo(list) # Spacer
       $("<dt>").text("Pitch").appendTo(list)
       $("<dd>").text(angleString(selectedTransfer.ejectionPitch, 2)).appendTo(list)
-      $("<dt>").text("Heading").appendTo(list)
-      $("<dd>").text(angleString(selectedTransfer.ejectionHeading, 2)).appendTo(list)
+      
+    $("<dt>").text("Heading").appendTo(list)
+    $("<dd>").text(angleString(selectedTransfer.ejectionHeading, 2)).appendTo(list)
     
     list
     
@@ -535,7 +640,7 @@ $(document).ready ->
   
   $('#porkchopForm').submit (event) ->
     event.preventDefault()
-    $('#porkchopSubmit').prop('disabled', true)
+    $('#porkchopSubmit,#porkchopContainer button,#refineTransferBtn').prop('disabled', true)
     
     scrollTop = $('#porkchopCanvas').offset().top + $('#porkchopCanvas').height() - $(window).height()
     $("html,body").animate(scrollTop: scrollTop, 500) if $(document).scrollTop() < scrollTop
@@ -571,29 +676,7 @@ $(document).ready ->
     shortestTimeOfFlight = +$('#shortestTimeOfFlight').val() * 24 * 3600
     yScale = +$('#longestTimeOfFlight').val() * 24 * 3600 - shortestTimeOfFlight
     
-    ctx = canvasContext
-    ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT)
-    ctx.clearRect(PLOT_X_OFFSET + PLOT_WIDTH + 85, 0, 65, PLOT_HEIGHT + 10)
-    ctx.clearRect(20, 0, PLOT_X_OFFSET - TIC_LENGTH - 21, PLOT_HEIGHT + TIC_LENGTH)
-    ctx.clearRect(PLOT_X_OFFSET - 40, PLOT_HEIGHT + TIC_LENGTH, PLOT_WIDTH + 80, 20)
-    
-    ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif'
-    ctx.fillStyle = 'black'
-    ctx.textAlign = 'right'
-    ctx.textBaseline = 'middle'
-    for i in [0..1.0] by 0.25
-      ctx.textBaseline = 'top' if i == 1.0
-      ctx.fillText(((shortestTimeOfFlight + i * yScale) / 3600 / 24) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT)
-    ctx.textAlign = 'center'
-    for i in [0..1.0] by 0.25
-      ctx.fillText(((earliestDeparture + i * xScale) / 3600 / 24) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3)
-      
-    deltaVs = null
-    worker.postMessage(
-      transferType: transferType, originBody: originBody, destinationBody: destinationBody,
-      initialOrbitalVelocity: initialOrbitalVelocity, finalOrbitalVelocity: finalOrbitalVelocity,
-      earliestDeparture: earliestDeparture, xScale: xScale,
-      shortestTimeOfFlight: shortestTimeOfFlight, yScale: yScale)
+    calculatePlot()
 
     description = "#{originBodyName} @#{+initialOrbit}km to #{destinationBodyName}"
     description += " @#{+finalOrbit}km" if finalOrbit
