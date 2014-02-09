@@ -558,24 +558,30 @@
   };
 
   $(document).ready(function() {
-    var addBodyForm, editBodyForm, ejectionDeltaVInfoContent, porkchopDragStart, porkchopDragged;
+    var addBodyForm, editBodyForm, ejectionDeltaVInfoContent, porkchopDragStart, porkchopDragTouchIdentifier, porkchopDragged;
 
     canvasContext = document.getElementById('porkchopCanvas').getContext('2d');
     plotImageData = canvasContext.createImageData(PLOT_WIDTH, PLOT_HEIGHT);
     prepareCanvas();
     prepareOrigins();
     porkchopDragStart = null;
+    porkchopDragTouchIdentifier = null;
     porkchopDragged = false;
     $('#porkchopCanvas').mousedown(function(event) {
+      var offsetX, offsetY, _ref, _ref1;
+
       if (event.which === 1 && (deltaVs != null)) {
-        $(this).addClass('grabbing');
-        return porkchopDragStart = {
-          x: event.pageX,
-          y: event.pageY
-        };
+        offsetX = ((_ref = event.offsetX) != null ? _ref : event.pageX - $('#porkchopCanvas').offset().left) | 0;
+        offsetY = ((_ref1 = event.offsetY) != null ? _ref1 : event.pageY - $('#porkchopCanvas').offset().top) | 0;
+        if (offsetX >= PLOT_X_OFFSET && offsetX < (PLOT_X_OFFSET + PLOT_WIDTH) && offsetY < PLOT_HEIGHT) {
+          $(this).addClass('grabbing');
+          return porkchopDragStart = {
+            x: event.pageX,
+            y: event.pageY
+          };
+        }
       }
-    });
-    $('#porkchopCanvas').mousemove(function(event) {
+    }).mousemove(function(event) {
       var offsetX, offsetY, pointer, x, y, _ref, _ref1;
 
       if ((deltaVs != null) && (porkchopDragStart == null)) {
@@ -591,28 +597,61 @@
         }
         return drawPlot(pointer);
       }
-    });
-    $('#porkchopCanvas').mouseleave(function(event) {
+    }).mouseleave(function(event) {
       if (porkchopDragStart == null) {
         return drawPlot();
       }
+    }).on('touchstart', function(event) {
+      var offsetX, offsetY, touch;
+
+      if (event.originalEvent.touches.length === 1 && (deltaVs != null)) {
+        touch = event.originalEvent.touches[0];
+        offsetX = (touch.pageX - $('#porkchopCanvas').offset().left) | 0;
+        offsetY = (touch.pageY - $('#porkchopCanvas').offset().top) | 0;
+        if (offsetX >= PLOT_X_OFFSET && offsetX < (PLOT_X_OFFSET + PLOT_WIDTH) && offsetY < PLOT_HEIGHT) {
+          event.preventDefault();
+          porkchopDragTouchIdentifier = touch.identifier;
+          return porkchopDragStart = {
+            x: touch.pageX,
+            y: touch.pageY
+          };
+        }
+      }
     });
-    $(document).mousemove(function(event) {
-      var ctx, deltaX, deltaY, dirtyHeight, dirtyWidth, dirtyX, dirtyY;
+    $(document).on('mousemove touchmove', function(event) {
+      var ctx, deltaX, deltaY, dirtyHeight, dirtyWidth, dirtyX, dirtyY, pageX, pageY, touch, _len, _n, _ref;
 
       if (porkchopDragStart != null) {
+        if (event.type === 'mousemove') {
+          pageX = event.pageX;
+          pageY = event.pageY;
+        } else {
+          _ref = event.originalEvent.changedTouches;
+          for (_n = 0, _len = _ref.length; _n < _len; _n++) {
+            touch = _ref[_n];
+            if (touch.identifier === porkchopDragTouchIdentifier) {
+              break;
+            }
+          }
+          if (!(touch.identifier === porkchopDragTouchIdentifier)) {
+            return;
+          }
+          event.preventDefault();
+          pageX = touch.pageX;
+          pageY = touch.pageY;
+        }
         porkchopDragged = true;
         ctx = canvasContext;
         ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT);
-        deltaX = event.pageX - porkchopDragStart.x;
+        deltaX = pageX - porkchopDragStart.x;
         if (deltaX > (earliestDeparture * PLOT_WIDTH) / xScale) {
           deltaX = (earliestDeparture * PLOT_WIDTH) / xScale;
-          porkchopDragStart.x = event.pageX - deltaX;
+          porkchopDragStart.x = pageX - deltaX;
         }
-        deltaY = event.pageY - porkchopDragStart.y;
+        deltaY = pageY - porkchopDragStart.y;
         if (deltaY < (1 - shortestTimeOfFlight) * PLOT_HEIGHT / yScale) {
           deltaY = (1 - shortestTimeOfFlight) * PLOT_HEIGHT / yScale;
-          porkchopDragStart.y = event.pageY - deltaY;
+          porkchopDragStart.y = pageY - deltaY;
         }
         dirtyX = Math.max(-deltaX, 0);
         dirtyY = Math.max(-deltaY, 0);
@@ -620,35 +659,45 @@
         dirtyHeight = PLOT_HEIGHT - Math.abs(deltaY);
         return ctx.putImageData(plotImageData, PLOT_X_OFFSET + deltaX, deltaY, dirtyX, dirtyY, dirtyWidth, dirtyHeight);
       }
-    });
-    $(document).mouseup(function(event) {
-      var deltaX, deltaY, offsetX, offsetY, pointer, x, y, _ref, _ref1, _ref2, _ref3;
+    }).on('mouseup touchcancel touchend', function(event) {
+      var deltaX, deltaY, offsetX, offsetY, pageX, pageY, touch, x, y, _len, _n, _ref;
 
-      if (event.which === 1 && (porkchopDragStart != null)) {
+      if (porkchopDragStart != null) {
+        if (event.type === 'mouseup') {
+          if (event.which !== 1) {
+            return;
+          }
+          pageX = event.pageX;
+          pageY = event.pageY;
+        } else {
+          _ref = event.originalEvent.changedTouches;
+          for (_n = 0, _len = _ref.length; _n < _len; _n++) {
+            touch = _ref[_n];
+            if (touch.identifier === porkchopDragTouchIdentifier) {
+              break;
+            }
+          }
+          if (!(touch.identifier === porkchopDragTouchIdentifier)) {
+            return;
+          }
+          event.preventDefault();
+          pageX = touch.pageX;
+          pageY = touch.pageY;
+        }
         $('#porkchopCanvas').removeClass('grabbing');
         if (porkchopDragged) {
-          if (porkchopDragStart.x !== event.pageX || porkchopDragStart.y !== event.pageY) {
-            deltaX = event.pageX - porkchopDragStart.x;
-            deltaY = event.pageY - porkchopDragStart.y;
+          if (porkchopDragStart.x !== pageX || porkchopDragStart.y !== pageY) {
+            deltaX = pageX - porkchopDragStart.x;
+            deltaY = pageY - porkchopDragStart.y;
             earliestDeparture = Math.max(earliestDeparture - deltaX * xScale / PLOT_WIDTH, 0);
             shortestTimeOfFlight = Math.max(shortestTimeOfFlight + deltaY * yScale / PLOT_HEIGHT, 1);
             calculatePlot();
           } else {
-            offsetX = ((_ref = event.offsetX) != null ? _ref : event.pageX - $('#porkchopCanvas').offset().left) | 0;
-            offsetY = ((_ref1 = event.offsetY) != null ? _ref1 : event.pageY - $('#porkchopCanvas').offset().top) | 0;
-            x = offsetX - PLOT_X_OFFSET;
-            y = offsetY;
-            if (x >= 0 && x < PLOT_WIDTH && y < PLOT_HEIGHT) {
-              pointer = {
-                x: x,
-                y: y
-              };
-            }
-            drawPlot(pointer);
+            drawPlot();
           }
         } else {
-          offsetX = ((_ref2 = event.offsetX) != null ? _ref2 : event.pageX - $('#porkchopCanvas').offset().left) | 0;
-          offsetY = ((_ref3 = event.offsetY) != null ? _ref3 : event.pageY - $('#porkchopCanvas').offset().top) | 0;
+          offsetX = (pageX - $('#porkchopCanvas').offset().left) | 0;
+          offsetY = (pageY - $('#porkchopCanvas').offset().top) | 0;
           x = offsetX - PLOT_X_OFFSET;
           y = offsetY;
           if (x >= 0 && x < PLOT_WIDTH && y < PLOT_HEIGHT && !isNaN(deltaVs[(y * PLOT_WIDTH + x) | 0])) {
@@ -656,14 +705,19 @@
               x: x,
               y: y
             });
-            drawPlot({
-              x: x,
-              y: y
-            });
+            if (event.type === 'mouseup') {
+              drawPlot({
+                x: x,
+                y: y
+              });
+            } else {
+              drawPlot();
+            }
             ga('send', 'event', 'porkchop', 'click', "" + x + "," + y);
           }
         }
         porkchopDragStart = null;
+        porkchopDragTouchIdentifier = null;
         return porkchopDragged = false;
       }
     });

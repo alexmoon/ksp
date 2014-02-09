@@ -440,75 +440,117 @@ $(document).ready ->
   prepareOrigins()
   
   porkchopDragStart = null
+  porkchopDragTouchIdentifier = null
   porkchopDragged = false
-  $('#porkchopCanvas').mousedown (event) ->
-    if event.which == 1 and deltaVs?
-      $(this).addClass('grabbing')
-      porkchopDragStart = { x: event.pageX, y: event.pageY }
-    
-  $('#porkchopCanvas').mousemove (event) ->
-    if deltaVs? and !porkchopDragStart?
-      offsetX = event.offsetX ? (event.pageX - $('#porkchopCanvas').offset().left) | 0
-      offsetY = event.offsetY ? (event.pageY - $('#porkchopCanvas').offset().top) | 0
-      x = offsetX - PLOT_X_OFFSET
-      y = offsetY
-      pointer = { x: x, y: y } if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT
-      drawPlot(pointer)
-      
-  $('#porkchopCanvas').mouseleave (event) ->
-    drawPlot() unless porkchopDragStart?
-    
-  $(document).mousemove (event) ->
-    if porkchopDragStart?
-      porkchopDragged = true
-      ctx = canvasContext
-      ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT)
-      
-      deltaX = event.pageX - porkchopDragStart.x
-      if deltaX > (earliestDeparture * PLOT_WIDTH) / xScale
-        deltaX = (earliestDeparture * PLOT_WIDTH) / xScale
-        porkchopDragStart.x = event.pageX - deltaX
-      deltaY = event.pageY - porkchopDragStart.y
-      if deltaY < (1 - shortestTimeOfFlight) * PLOT_HEIGHT / yScale
-        deltaY = (1 - shortestTimeOfFlight) * PLOT_HEIGHT / yScale
-        porkchopDragStart.y = event.pageY - deltaY
-      dirtyX = Math.max(-deltaX, 0)
-      dirtyY = Math.max(-deltaY, 0)
-      dirtyWidth = PLOT_WIDTH - Math.abs(deltaX)
-      dirtyHeight = PLOT_HEIGHT - Math.abs(deltaY)
-      ctx.putImageData(plotImageData, PLOT_X_OFFSET + deltaX, deltaY, dirtyX, dirtyY, dirtyWidth, dirtyHeight)
-  
-  $(document).mouseup (event) ->
-    if event.which == 1 and porkchopDragStart?
-      $('#porkchopCanvas').removeClass('grabbing')
-      if porkchopDragged
-        if porkchopDragStart.x != event.pageX or porkchopDragStart.y != event.pageY
-          # Drag end
-          deltaX = event.pageX - porkchopDragStart.x
-          deltaY = event.pageY - porkchopDragStart.y
-          earliestDeparture = Math.max(earliestDeparture - deltaX * xScale / PLOT_WIDTH, 0)
-          shortestTimeOfFlight = Math.max(shortestTimeOfFlight + deltaY * yScale / PLOT_HEIGHT, 1)
-          calculatePlot()
-        else
-          offsetX = event.offsetX ? (event.pageX - $('#porkchopCanvas').offset().left) | 0
-          offsetY = event.offsetY ? (event.pageY - $('#porkchopCanvas').offset().top) | 0
-          x = offsetX - PLOT_X_OFFSET
-          y = offsetY
-          pointer = { x: x, y: y } if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT
-          drawPlot(pointer)
-      else
-        # Click, select new transfer
+  $('#porkchopCanvas')
+    .mousedown (event) ->
+      if event.which == 1 and deltaVs?
+        offsetX = event.offsetX ? (event.pageX - $('#porkchopCanvas').offset().left) | 0
+        offsetY = event.offsetY ? (event.pageY - $('#porkchopCanvas').offset().top) | 0
+        if offsetX >= PLOT_X_OFFSET and offsetX < (PLOT_X_OFFSET + PLOT_WIDTH) and offsetY < PLOT_HEIGHT
+          $(this).addClass('grabbing')
+          porkchopDragStart = { x: event.pageX, y: event.pageY }
+          
+    .mousemove (event) ->
+      if deltaVs? and !porkchopDragStart?
         offsetX = event.offsetX ? (event.pageX - $('#porkchopCanvas').offset().left) | 0
         offsetY = event.offsetY ? (event.pageY - $('#porkchopCanvas').offset().top) | 0
         x = offsetX - PLOT_X_OFFSET
         y = offsetY
-        if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT and !isNaN(deltaVs[(y * PLOT_WIDTH + x) | 0])
-          showTransferDetailsForPoint(x: x, y: y)
-          drawPlot(x: x, y: y)
-          ga('send', 'event', 'porkchop', 'click', "#{x},#{y}")
-      
-      porkchopDragStart = null
-      porkchopDragged = false
+        pointer = { x: x, y: y } if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT
+        drawPlot(pointer)
+        
+    .mouseleave (event) ->
+      drawPlot() unless porkchopDragStart?
+    
+    .on 'touchstart', (event) ->
+      if event.originalEvent.touches.length == 1 and deltaVs?
+        touch = event.originalEvent.touches[0]
+        offsetX = (touch.pageX - $('#porkchopCanvas').offset().left) | 0
+        offsetY = (touch.pageY - $('#porkchopCanvas').offset().top) | 0
+        if offsetX >= PLOT_X_OFFSET and offsetX < (PLOT_X_OFFSET + PLOT_WIDTH) and offsetY < PLOT_HEIGHT
+          event.preventDefault()
+          porkchopDragTouchIdentifier = touch.identifier
+          porkchopDragStart = { x: touch.pageX, y: touch.pageY }
+    
+  $(document)
+    .on 'mousemove touchmove', (event) ->
+      if porkchopDragStart?
+        if event.type == 'mousemove'
+          pageX = event.pageX
+          pageY = event.pageY
+        else
+          for touch in event.originalEvent.changedTouches
+            break if touch.identifier == porkchopDragTouchIdentifier
+            
+          return unless (touch.identifier == porkchopDragTouchIdentifier)
+          
+          event.preventDefault()
+          pageX = touch.pageX
+          pageY = touch.pageY
+          
+        porkchopDragged = true
+        ctx = canvasContext
+        ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT)
+        
+        deltaX = pageX - porkchopDragStart.x
+        if deltaX > (earliestDeparture * PLOT_WIDTH) / xScale
+          deltaX = (earliestDeparture * PLOT_WIDTH) / xScale
+          porkchopDragStart.x = pageX - deltaX
+        deltaY = pageY - porkchopDragStart.y
+        if deltaY < (1 - shortestTimeOfFlight) * PLOT_HEIGHT / yScale
+          deltaY = (1 - shortestTimeOfFlight) * PLOT_HEIGHT / yScale
+          porkchopDragStart.y = pageY - deltaY
+        dirtyX = Math.max(-deltaX, 0)
+        dirtyY = Math.max(-deltaY, 0)
+        dirtyWidth = PLOT_WIDTH - Math.abs(deltaX)
+        dirtyHeight = PLOT_HEIGHT - Math.abs(deltaY)
+        ctx.putImageData(plotImageData, PLOT_X_OFFSET + deltaX, deltaY, dirtyX, dirtyY, dirtyWidth, dirtyHeight)
+    
+    .on 'mouseup touchcancel touchend', (event) ->
+      if porkchopDragStart?
+        if event.type == 'mouseup'
+          return unless event.which == 1
+          pageX = event.pageX
+          pageY = event.pageY
+        else
+          for touch in event.originalEvent.changedTouches
+            break if touch.identifier == porkchopDragTouchIdentifier
+            
+          return unless (touch.identifier == porkchopDragTouchIdentifier)
+          
+          event.preventDefault()
+          pageX = touch.pageX
+          pageY = touch.pageY
+        
+        $('#porkchopCanvas').removeClass('grabbing')
+        if porkchopDragged
+          if porkchopDragStart.x != pageX or porkchopDragStart.y != pageY
+            # Drag end
+            deltaX = pageX - porkchopDragStart.x
+            deltaY = pageY - porkchopDragStart.y
+            earliestDeparture = Math.max(earliestDeparture - deltaX * xScale / PLOT_WIDTH, 0)
+            shortestTimeOfFlight = Math.max(shortestTimeOfFlight + deltaY * yScale / PLOT_HEIGHT, 1)
+            calculatePlot()
+          else
+            drawPlot()
+        else
+          # Click, select new transfer
+          offsetX = (pageX - $('#porkchopCanvas').offset().left) | 0
+          offsetY = (pageY - $('#porkchopCanvas').offset().top) | 0
+          x = offsetX - PLOT_X_OFFSET
+          y = offsetY
+          if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT and !isNaN(deltaVs[(y * PLOT_WIDTH + x) | 0])
+            showTransferDetailsForPoint(x: x, y: y)
+            if event.type == 'mouseup'
+              drawPlot(x: x, y: y)
+            else
+              drawPlot()
+            ga('send', 'event', 'porkchop', 'click', "#{x},#{y}")
+    
+        porkchopDragStart = null
+        porkchopDragTouchIdentifier = null
+        porkchopDragged = false
   
   $('#porkchopZoomIn').click (event) ->
     xCenter = earliestDeparture + selectedPoint.x * xScale / PLOT_WIDTH
