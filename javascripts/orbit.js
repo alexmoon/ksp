@@ -740,6 +740,7 @@
         transfer.ejectionDeltaVector = numeric.mulSV(0.5, numeric.addVV(lastEjectionDeltaVector, transfer.ejectionDeltaVector));
         transfer.ejectionDeltaV = numeric.norm2(transfer.ejectionDeltaVector);
       }
+      transfer.orbit = Orbit.fromPositionAndVelocity(originOrbit.referenceBody, p1, transfer.ejectionVelocity, t1);
       transfer.ejectionDeltaV = circularToEscapeDeltaV(originBody, initialOrbitalVelocity, transfer.ejectionDeltaV, transfer.ejectionInclination);
       transfer.deltaV = transfer.ejectionDeltaV + transfer.planeChangeDeltaV + transfer.insertionDeltaV;
     }
@@ -756,10 +757,9 @@
     n0 = transferOrbit.normalVector();
     n1 = destinationOrbit.normalVector();
     velocityForArrivalAt = function(t1) {
-      var longWay, p1;
+      var p1;
 
       p1 = destinationOrbit.positionAtTrueAnomaly(destinationOrbit.trueAnomalyAt(t1));
-      longWay = numeric.dot(crossProduct(p0, projectToPlane(p1, n0)), n0) < 0;
       return lambert(mu, p0, p1, t1 - burnTime)[0];
     };
     t1Min = Math.max(0.5 * (eta - burnTime), 3600);

@@ -568,6 +568,7 @@ Orbit.refineTransfer = (transfer, transferType, originBody, destinationBody, t0,
       transfer.ejectionDeltaV = numeric.norm2(transfer.ejectionDeltaVector)
     
     # Modify the ejection and total delta-v to take the initial orbit into account
+    transfer.orbit = Orbit.fromPositionAndVelocity(originOrbit.referenceBody, p1, transfer.ejectionVelocity, t1)
     transfer.ejectionDeltaV = circularToEscapeDeltaV(originBody, initialOrbitalVelocity, transfer.ejectionDeltaV, transfer.ejectionInclination)
     transfer.deltaV = transfer.ejectionDeltaV + transfer.planeChangeDeltaV + transfer.insertionDeltaV
   
@@ -584,7 +585,6 @@ Orbit.courseCorrection = (transferOrbit, destinationOrbit, burnTime, eta) ->
   
   velocityForArrivalAt = (t1) ->
     p1 = destinationOrbit.positionAtTrueAnomaly(destinationOrbit.trueAnomalyAt(t1))
-    longWay = (numeric.dot(crossProduct(p0, projectToPlane(p1, n0)), n0) < 0)
     lambert(mu, p0, p1, t1 - burnTime)[0]
   
   # Search for the optimal arrival time within 20% of eta
