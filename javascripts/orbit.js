@@ -509,7 +509,7 @@
   };
 
   Orbit.transfer = function(transferType, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity, p0, v0, n0, p1, v1, planeChangeAngleToIntercept) {
-    var ballisticTransfer, ejectionDeltaV, ejectionDeltaVector, ejectionInclination, ejectionVelocity, insertionDeltaV, insertionDeltaVector, insertionInclination, insertionVelocity, nu0, nu1, orbit, p1InOriginPlane, planeChangeAngle, planeChangeAxis, planeChangeDeltaV, planeChangeRotation, planeChangeTime, planeChangeTransfer, planeChangeTrueAnomaly, referenceBody, relativeInclination, t1, transferAngle, trueAnomalyAtIntercept, v1InOriginPlane, x, x1, x2, _ref, _ref1;
+    var ballisticTransfer, dv, ejectionDeltaV, ejectionDeltaVector, ejectionInclination, ejectionVelocity, insertionDeltaV, insertionDeltaVector, insertionInclination, insertionVelocity, minDeltaV, nu0, nu1, orbit, p1InOriginPlane, planeChangeAngle, planeChangeAxis, planeChangeDeltaV, planeChangeRotation, planeChangeTime, planeChangeTransfer, planeChangeTrueAnomaly, referenceBody, relativeInclination, s, solutions, t1, transferAngle, trueAnomalyAtIntercept, v1InOriginPlane, x, x1, x2, _i, _len, _ref;
 
     referenceBody = originBody.orbit.referenceBody;
     t1 = t0 + dt;
@@ -557,7 +557,7 @@
       planeChangeRotation = quaternion.fromAngleAxis(-relativeInclination, crossProduct(p1, n0));
       p1InOriginPlane = quaternion.rotate(planeChangeRotation, p1);
       v1InOriginPlane = quaternion.rotate(planeChangeRotation, v1);
-      ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0];
+      ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0][0];
       orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0);
       trueAnomalyAtIntercept = orbit.trueAnomalyAtPosition(p1InOriginPlane);
       x = goldenSectionSearch(x1, x2, 1e-2, function(x) {
@@ -571,7 +571,7 @@
       planeChangeRotation = quaternion.fromAngleAxis(planeChangeAngle, planeChangeAxis);
       p1InOriginPlane = quaternion.rotate(planeChangeRotation, p1);
       v1InOriginPlane = quaternion.rotate(planeChangeRotation, v1);
-      ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0];
+      ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0][0];
       orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0);
       trueAnomalyAtIntercept = orbit.trueAnomalyAtPosition(p1InOriginPlane);
       x = goldenSectionSearch(x1, x2, 1e-2, function(x) {
@@ -596,10 +596,22 @@
       transferAngle = TWO_PI - transferAngle;
     }
     if (!planeChangeAngle || transferAngle <= HALF_PI) {
-      _ref = lambert(referenceBody.gravitationalParameter, p0, p1, dt), ejectionVelocity = _ref[0], insertionVelocity = _ref[1];
+      solutions = lambert(referenceBody.gravitationalParameter, p0, p1, dt, 10);
+      minDeltaV = Infinity;
+      for (_i = 0, _len = solutions.length; _i < _len; _i++) {
+        s = solutions[_i];
+        dv = numeric.norm2(numeric.subVV(s[0], v0));
+        if (typeof finalOrbitVelocity !== "undefined" && finalOrbitVelocity !== null) {
+          dv += numeric.norm2(numeric.subVV(s[1], v1));
+        }
+        if (dv < minDeltaV) {
+          minDeltaV = dv;
+          ejectionVelocity = s[0], insertionVelocity = s[1], transferAngle = s[2];
+        }
+      }
       planeChangeDeltaV = 0;
     } else {
-      _ref1 = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt), ejectionVelocity = _ref1[0], insertionVelocity = _ref1[1];
+      _ref = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0], ejectionVelocity = _ref[0], insertionVelocity = _ref[1];
       orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0);
       planeChangeTrueAnomaly = orbit.trueAnomalyAt(t1) - planeChangeAngleToIntercept;
       planeChangeDeltaV = Math.abs(2 * orbit.speedAtTrueAnomaly(planeChangeTrueAnomaly) * Math.sin(planeChangeAngle / 2));
@@ -760,7 +772,7 @@
       var p1;
 
       p1 = destinationOrbit.positionAtTrueAnomaly(destinationOrbit.trueAnomalyAt(t1));
-      return lambert(mu, p0, p1, t1 - burnTime)[0];
+      return lambert(mu, p0, p1, t1 - burnTime)[0][0];
     };
     t1Min = Math.max(0.5 * (eta - burnTime), 3600);
     t1Max = 1.5 * (eta - burnTime);

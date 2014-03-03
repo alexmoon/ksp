@@ -386,7 +386,7 @@ Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbi
     planeChangeRotation = quaternion.fromAngleAxis(-relativeInclination, crossProduct(p1, n0))
     p1InOriginPlane = quaternion.rotate(planeChangeRotation, p1)
     v1InOriginPlane = quaternion.rotate(planeChangeRotation, v1)
-    ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0]
+    ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0][0]
     orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0)
     trueAnomalyAtIntercept = orbit.trueAnomalyAtPosition(p1InOriginPlane)
     x = goldenSectionSearch x1, x2, 1e-2, (x) ->
@@ -399,7 +399,7 @@ Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbi
     planeChangeRotation = quaternion.fromAngleAxis(planeChangeAngle, planeChangeAxis)
     p1InOriginPlane = quaternion.rotate(planeChangeRotation, p1)
     v1InOriginPlane = quaternion.rotate(planeChangeRotation, v1)
-    ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0]
+    ejectionVelocity = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0][0]
     orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0)
     trueAnomalyAtIntercept = orbit.trueAnomalyAtPosition(p1InOriginPlane)
     x = goldenSectionSearch x1, x2, 1e-2, (x) ->
@@ -421,10 +421,17 @@ Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbi
   transferAngle = TWO_PI - transferAngle if p0[0] * p1[1] - p0[1] * p1[0] < 0 # (p0 x p1).z
 
   if !planeChangeAngle or transferAngle <= HALF_PI
-    [ejectionVelocity, insertionVelocity] = lambert(referenceBody.gravitationalParameter, p0, p1, dt)
+    solutions = lambert(referenceBody.gravitationalParameter, p0, p1, dt, 10)
+    minDeltaV = Infinity
+    for s in solutions
+      dv = numeric.norm2(numeric.subVV(s[0], v0))
+      dv += numeric.norm2(numeric.subVV(s[1], v1)) if finalOrbitVelocity?
+      if dv < minDeltaV
+        minDeltaV = dv
+        [ejectionVelocity, insertionVelocity, transferAngle] = s
     planeChangeDeltaV = 0
   else
-    [ejectionVelocity, insertionVelocity] = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)
+    [ejectionVelocity, insertionVelocity] = lambert(referenceBody.gravitationalParameter, p0, p1InOriginPlane, dt)[0]
 
     orbit = Orbit.fromPositionAndVelocity(referenceBody, p0, ejectionVelocity, t0)
     planeChangeTrueAnomaly = orbit.trueAnomalyAt(t1) - planeChangeAngleToIntercept
@@ -585,7 +592,7 @@ Orbit.courseCorrection = (transferOrbit, destinationOrbit, burnTime, eta) ->
   
   velocityForArrivalAt = (t1) ->
     p1 = destinationOrbit.positionAtTrueAnomaly(destinationOrbit.trueAnomalyAt(t1))
-    lambert(mu, p0, p1, t1 - burnTime)[0]
+    lambert(mu, p0, p1, t1 - burnTime)[0][0]
   
   # Search for the optimal arrival time within 20% of eta
   t1Min = Math.max(0.5 * (eta - burnTime), 3600)
