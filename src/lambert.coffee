@@ -7,6 +7,8 @@ MACHINE_EPSILON *= 0.5 until (1.0 + MACHINE_EPSILON) == 1.0
 acot = (x) -> HALF_PI - Math.atan(x)
 acoth = (x) -> 0.5 * Math.log((x + 1) / (x - 1))
 
+relativeError = (a, b) -> Math.abs(1.0 - a / b)
+
 findRoot = (a, b, relativeAccuracy, f, df, ddf) ->
   c = a
   fa = f(a)
@@ -14,6 +16,8 @@ findRoot = (a, b, relativeAccuracy, f, df, ddf) ->
   fc = fa
   d = b - a
   e = d
+  
+  return NaN if fa / fb > 0 # Can't find a root if the signs of fa and fb are equal
   
   i = 0
   loop
@@ -133,7 +137,7 @@ findRoot = (a, b, relativeAccuracy, f, df, ddf) ->
         (acot(x / g) - Math.atan(h / y) - x * g + y * h + N * Math.PI) / (g * g * g) - normalizedTime
   
   # Partition the solution space
-  if normalizedTime == parabolicNormalizedTime # Unique parabolic solution
+  if relativeError(normalizedTime, parabolicNormalizedTime) < 1e-6 # Unique parabolic solution
     x = 1.0
     y = if angleParameter < 0 then -1 else 1
     pushSolution(x, y, 0)
@@ -160,34 +164,42 @@ findRoot = (a, b, relativeAccuracy, f, df, ddf) ->
         
         # Find the minimum (normalized) time an N revolution trajectory will take
         if angleParameter == 1
-          x = 0
+          xMT = 0
           minimumNormalizedTime = minimumEnergyNormalizedTime
         else if angleParameter == 0
-          x = findRoot(0, 1, 1e-6, (x) -> phix(x) + N * Math.PI)
-          minimumNormalizedTime = 2 / (3 * x)
+          xMT = findRoot(0, 1, 1e-6, (x) -> phix(x) + N * Math.PI)
+          minimumNormalizedTime = 2 / (3 * xMT)
         else
-          x = findRoot(0, 1, 1e-6, (x) -> phix(x) - phiy(fy(x)) + N * Math.PI)
-          minimumNormalizedTime = 2 / 3 * (1 / x - angleParameter * angleParameter * angleParameter / Math.abs(fy(x)))
+          xMT = findRoot(0, 1, 1e-6, (x) -> phix(x) - phiy(fy(x)) + N * Math.PI)
+          minimumNormalizedTime = 2 / 3 * (1 / xMT - angleParameter * angleParameter * angleParameter / Math.abs(fy(xMT)))
         
-        if normalizedTime < minimumNormalizedTime
+        if relativeError(normalizedTime, minimumNormalizedTime) < 1e-6
+          # One solution for N revolutions and we're done
+          pushSolution(xMT, fy(xMT), (N + 1) * TWO_PI - transferAngle)
+          break
+        else if normalizedTime < minimumNormalizedTime
           # No solutions for N revolutions; we're done
           break
-        else if normalizedTime == minimumNormalizedTime
-          # One solution for N revolutions and we're done
-          pushSolution(x, fy(x), (N + 1) * TWO_PI - transferAngle)
+        else if normalizedTime < minimumEnergyNormalizedTime
+          # Two low path solutions
+          x = findRoot(0, xMT, 1e-4, ftau)
+          pushSolution(x, fy(x), N) unless isNaN(x)
+          x = findRoot(xMT, 1.0 - MACHINE_EPSILON, 1e-4, ftau)
+          pushSolution(x, fy(x), N) unless isNaN(x)
           break
       
-      # High path (or minimum energy) result
-      if normalizedTime == minimumEnergyNormalizedTime  # The minimum energy elliptical solution
-        pushSolution(0, fy(0), N)
-      else if N > 0 or normalizedTime > minimumEnergyNormalizedTime
-        x = findRoot(-1.0 + MACHINE_EPSILON, 0, 1e-4, ftau)
-        pushSolution(x, fy(x), N)
-      
-      # Low path result
-      if N > 0 or normalizedTime < minimumEnergyNormalizedTime
-        x = findRoot(0, 1.0, 1e-4, ftau)
-        pushSolution(x, fy(x), N)
+      if relativeError(normalizedTime, minimumEnergyNormalizedTime) < 1e-6  
+        pushSolution(0, fy(0), N) # The minimum energy elliptical solution
+        if N > 0 # For N > 0 there is also a low path solution
+          x = findRoot(1e-6, 1.0 - MACHINE_EPSILON, 1e-4, ftau)
+          pushSolution(x, fy(x), N) unless isNaN(x)
+      else
+        if N > 0 or normalizedTime > minimumEnergyNormalizedTime # High path solution
+          x = findRoot(-1.0 + MACHINE_EPSILON, 0, 1e-4, ftau)
+          pushSolution(x, fy(x), N) unless isNaN(x)
+        if N > 0 or normalizedTime < minimumEnergyNormalizedTime # Low path solution
+          x = findRoot(0, 1.0 - MACHINE_EPSILON, 1e-4, ftau)
+          pushSolution(x, fy(x), N) unless isNaN(x)
       
       minimumEnergyNormalizedTime += Math.PI
   
