@@ -106,7 +106,9 @@ dateFromString = (dateString) ->
 worker = new Worker("javascripts/porkchopworker.js")
 
 worker.onmessage = (event) ->
-  if 'progress' of event.data
+  if 'log' of event.data
+    console.log(event.data.log...)
+  else if 'progress' of event.data
     $('#porkchopProgress').show().find('.progress-bar').width((event.data.progress * 100 | 0) + "%")
   else if 'deltaVs' of event.data
     $('#porkchopProgress').hide().find('.progress-bar').width("0%")

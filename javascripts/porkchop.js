@@ -193,7 +193,9 @@
   worker.onmessage = function(event) {
     var color, colorIndex, deltaV, j, maxDeltaV, minDeltaV, relativeDeltaV, x, y, _n, _o;
 
-    if ('progress' in event.data) {
+    if ('log' in event.data) {
+      return console.log.apply(console, event.data.log);
+    } else if ('progress' in event.data) {
       return $('#porkchopProgress').show().find('.progress-bar').width((event.data.progress * 100 | 0) + "%");
     } else if ('deltaVs' in event.data) {
       $('#porkchopProgress').hide().find('.progress-bar').width("0%");
