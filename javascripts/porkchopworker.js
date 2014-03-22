@@ -64,7 +64,9 @@
             y: y
           };
         }
-        maxDeltaV = Math.max(deltaV, maxDeltaV);
+        if (deltaV > maxDeltaV) {
+          maxDeltaV = deltaV;
+        }
       }
       now = Date.now();
       if (now - lastProgress > 100) {

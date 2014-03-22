@@ -114,15 +114,15 @@ worker.onmessage = (event) ->
     $('#porkchopProgress').hide().find('.progress-bar').width("0%")
     deltaVs = event.data.deltaVs
     deltaVs = new Float64Array(deltaVs) if deltaVs instanceof ArrayBuffer
-    minDeltaV = event.data.minDeltaV
-    maxDeltaV = 4 * minDeltaV
+    logMinDeltaV = Math.log(event.data.minDeltaV)
+    logMaxDeltaV = Math.log(event.data.maxDeltaV)
     
     i = 0
     j = 0
     for y in [0...PLOT_HEIGHT]
       for x in [0...PLOT_WIDTH]
-        deltaV = deltaVs[i++]
-        relativeDeltaV = if isNaN(deltaV) then 1.0 else (clamp(deltaV, minDeltaV, maxDeltaV) - minDeltaV) / (maxDeltaV - minDeltaV)
+        logDeltaV = Math.log(deltaVs[i++])
+        relativeDeltaV = if isNaN(logDeltaV) then 1.0 else (logDeltaV - logMinDeltaV) / (logMaxDeltaV - logMinDeltaV)
         colorIndex = Math.min(relativeDeltaV * palette.length | 0, palette.length - 1)
         color = palette[colorIndex]
         plotImageData.data[j++] = color[0]
@@ -130,7 +130,7 @@ worker.onmessage = (event) ->
         plotImageData.data[j++] = color[2]
         plotImageData.data[j++] = 255
     
-    drawDeltaVScale(minDeltaV, maxDeltaV)
+    drawDeltaVScale(logMinDeltaV, logMaxDeltaV)
     showTransferDetailsForPoint(event.data.minDeltaVPoint)
     drawPlot()
     
@@ -139,7 +139,7 @@ worker.onmessage = (event) ->
 calculatePlot = (erasePlot) ->
   ctx = canvasContext
   ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT) if erasePlot
-  ctx.clearRect(PLOT_X_OFFSET + PLOT_WIDTH + 85, 0, 65, PLOT_HEIGHT + 10)
+  ctx.clearRect(PLOT_X_OFFSET + PLOT_WIDTH + 85, 0, 95, PLOT_HEIGHT + 10)
   ctx.clearRect(20, 0, PLOT_X_OFFSET - TIC_LENGTH - 21, PLOT_HEIGHT + TIC_LENGTH)
   ctx.clearRect(PLOT_X_OFFSET - 40, PLOT_HEIGHT + TIC_LENGTH, PLOT_WIDTH + 80, 20)
   
@@ -161,7 +161,7 @@ calculatePlot = (erasePlot) ->
     earliestDeparture: earliestDeparture, xScale: xScale,
     shortestTimeOfFlight: shortestTimeOfFlight, yScale: yScale)
   
-drawDeltaVScale = (minDeltaV, maxDeltaV) ->
+drawDeltaVScale = (logMinDeltaV, logMaxDeltaV) ->
   ctx = canvasContext
   ctx.save()
   ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif'
@@ -169,10 +169,14 @@ drawDeltaVScale = (minDeltaV, maxDeltaV) ->
   ctx.fillStyle = 'black'
   ctx.textBaseline = 'alphabetic'
   for i in [0...1.0] by 0.25
-    ctx.fillText((minDeltaV + i * (maxDeltaV - minDeltaV)).toFixed() + " m/s", PLOT_X_OFFSET + PLOT_WIDTH + 85, (1.0 - i) * PLOT_HEIGHT)
+    deltaV = Math.exp(i * (logMaxDeltaV - logMinDeltaV) + logMinDeltaV)
+    if deltaV.toFixed().length > 6 then deltaV = deltaV.toExponential(3) else deltaV = deltaV.toFixed()
+    ctx.fillText(deltaV + " m/s", PLOT_X_OFFSET + PLOT_WIDTH + 85, (1.0 - i) * PLOT_HEIGHT)
     ctx.textBaseline = 'middle'
   ctx.textBaseline = 'top'
-  ctx.fillText(maxDeltaV.toFixed() + " m/s", PLOT_X_OFFSET + PLOT_WIDTH + 85, 0)
+  deltaV = Math.exp(logMaxDeltaV)
+  if deltaV.toFixed().length > 6 then deltaV = deltaV.toExponential(3) else deltaV = deltaV.toFixed()
+  ctx.fillText(deltaV + " m/s", PLOT_X_OFFSET + PLOT_WIDTH + 85, 0)
   ctx.restore()
   
 drawPlot = (pointer) ->

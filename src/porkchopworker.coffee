@@ -59,7 +59,7 @@ HEIGHT = 300
         minDeltaV = deltaV
         minDeltaVPoint = { x: x, y: y }
       
-      maxDeltaV = Math.max(deltaV, maxDeltaV)
+      maxDeltaV = deltaV if deltaV > maxDeltaV
     
     now = Date.now()
     if now - lastProgress > 100
