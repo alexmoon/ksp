@@ -100,6 +100,10 @@
         padding: 5px;
         border-radius: 5px;
       }
+      
+      .radio:last-child {
+        padding-bottom: 7px;
+      }
     </style>
   </head>
   <body>
@@ -113,6 +117,22 @@
             <h4>Mission parameters</h4>
             <form class="form-horizontal" id="porkchopForm">
               <fieldset>
+                <div class="form-group">
+                  <label class="col-sm-4 col-md-4 control-label" for="originSelect">Date format</label>
+                  <div class="col-sm-8 col-md-8">
+                    <div class="radio">
+                      <label>
+                        <input type="radio" name="dateFormat" id="kerbinTime" value="kerbin" checked>
+                        Kerbin Time (6h days, 426d years)
+                      </label>
+                    </div>
+                    <div class="radio">
+                      <label>
+                        <input type="radio" name="dateFormat" id="earthTime" value="earth">
+                        Earth Time (24h days, 365d years)
+                      </label>
+                    </div>
+                  </div>
                 <div class="form-group">
                   <label class="col-sm-4 col-md-4 control-label" for="originSelect">Origin</label>
                   <div class="col-sm-8 col-md-8">

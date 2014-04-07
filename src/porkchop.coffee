@@ -19,6 +19,10 @@ plotImageData = null
 selectedPoint = null
 selectedTransfer = null
 
+# Default to Kerbin time
+hoursPerDay = 6
+daysPerYear = 426
+
 palette = []
 palette.push([64, i, 255]) for i in [64...69]
 palette.push([128, i, 255]) for i in [133..255]
@@ -35,31 +39,57 @@ isBlank = (str) -> !/\S/.test(str)
 numberWithCommas = (n) ->
   n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
 
-hourMinSec = (t) ->
-  hour = (t / 3600) | 0
+secondsPerDay = -> hoursPerDay * 3600
+
+hms = (t) ->
+  hours = (t / 3600) | 0
   t %= 3600
-  min = (t / 60) | 0
+  mins = (t / 60) | 0
+  secs = t % 60
+  [hours, mins, secs]
+
+ydhms = (t) ->
+  [hours, mins, secs] = hms(+t)
+  days = (hours / hoursPerDay) | 0
+  hours = hours % hoursPerDay
+  years = (days / daysPerYear) | 0
+  days = days % daysPerYear
+  [years, days, hours, mins, secs]
+
+kerbalDate = (t) ->
+  [years, days, hours, mins, secs] = ydhms(+t)
+  [years + 1, days + 1, hours, mins, secs]
+
+durationSeconds = (years = 0, days = 0, hours = 0, mins = 0, secs = 0) ->
+  ((((+years * daysPerYear) + +days) * hoursPerDay + +hours) * 60 + +mins) * 60 + +secs
+
+dateSeconds = (year = 0, day = 0, hour = 0, min = 0, sec = 0) ->
+  durationSeconds(+year - 1, +day - 1, +hour, +min, +sec)
+
+hmsString = (hour, min, sec) ->
   min = "0#{min}" if min < 10
-  sec = (t % 60).toFixed()
   sec = "0#{sec}" if sec < 10
   "#{hour}:#{min}:#{sec}"
   
 kerbalDateString = (t) ->
-  year = ((t / (365 * 24 * 3600)) | 0) + 1
-  t %= (365 * 24 * 3600)
-  day = ((t / (24 * 3600)) | 0) + 1
-  t %= (24 * 3600)
-  "Year #{year}, day #{day} at #{hourMinSec(t)}"
+  [year, day, hour, min, sec] = kerbalDate(+t.toFixed())
+  "Year #{year}, day #{day} at #{hmsString(hour, min, sec)}"
+
+shortKerbalDateString = (t) ->
+  [year, day, hour, min, sec] = kerbalDate(+t.toFixed())
+  "#{year}/#{day} #{hmsString(hour, min, sec)}"
+
+dateFromString = (dateString) ->
+  components = dateString.match(/(\d+)\/(\d+)\s+(\d+):(\d+):(\d+)/)
+  components.shift()
+  dateSeconds(components...)
 
 durationString = (t) ->
+  [years, days, hours, mins, secs] = ydhms(t.toFixed())
   result = ""
-  if t >= 365 * 24 * 3600
-    result += (t / (365 * 24 * 3600) | 0) + " years "
-    t %= 365 * 24 * 3600
-    result += "0 days " if t < 24 * 3600
-  result += (t / (24 * 3600) | 0) + " days " if t >= 24 * 3600
-  t %= 24 * 3600
-  result + hourMinSec(t)
+  result += years + " years " if years > 0
+  result += days + " days " if years > 0 or days > 0
+  result + hmsString(hours, mins, secs)
 
 distanceString = (d) ->
   if Math.abs(d) > 1e12
@@ -79,29 +109,6 @@ deltaVAbbr = (el, dv, prograde, normal, radial) ->
   
 angleString = (angle, precision = 0) ->
   (angle * 180 / Math.PI).toFixed(precision) + String.fromCharCode(0x00b0)
-
-shortKerbalDateString = (t) ->
-  year = ((t / (365 * 24 * 3600)) | 0) + 1
-  t %= (365 * 24 * 3600)
-  day = ((t / (24 * 3600)) | 0) + 1
-  t %= (24 * 3600)
-  "#{year}/#{day} #{hourMinSec(t)}"
-
-dateFromString = (dateString) ->
-  componentScales = [365, 24, 60, 60]
-  
-  components = dateString.match(/(\d+)\/(\d+)\s+(\d+):(\d+):(\d+)/)
-  components.shift()
-  components = components.reverse()
-  
-  time = 0
-  scale = 1
-  for c in components
-    c = c - 1 if scale > 3600
-    time += scale * c
-    break if componentScales.length == 0
-    scale *= componentScales.pop()
-  time
 
 worker = new Worker("javascripts/porkchopworker.js")
 
@@ -149,10 +156,10 @@ calculatePlot = (erasePlot) ->
   ctx.textBaseline = 'middle'
   for i in [0..1.0] by 0.25
     ctx.textBaseline = 'top' if i == 1.0
-    ctx.fillText(((shortestTimeOfFlight + i * yScale) / 3600 / 24) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT)
+    ctx.fillText(((shortestTimeOfFlight + i * yScale) / secondsPerDay()) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT)
   ctx.textAlign = 'center'
   for i in [0..1.0] by 0.25
-    ctx.fillText(((earliestDeparture + i * xScale) / 3600 / 24) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3)
+    ctx.fillText(((earliestDeparture + i * xScale) / secondsPerDay()) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3)
     
   deltaVs = null
   worker.postMessage(
@@ -367,23 +374,23 @@ updateAdvancedControls = ->
   hohmannTransferTime = hohmannTransfer.period() / 2
   synodicPeriod = Math.abs(1 / (1 / destination.orbit.period() - 1 / origin.orbit.period()))
   
-  departureRange = Math.min(2 * synodicPeriod, 2 * origin.orbit.period()) / (24 * 3600)
+  departureRange = Math.min(2 * synodicPeriod, 2 * origin.orbit.period()) / secondsPerDay()
   if departureRange < 0.1
     departureRange = +departureRange.toFixed(2)
   else if departureRange < 1
     departureRange = +departureRange.toFixed(1)
   else
     departureRange = +departureRange.toFixed()
-  minDeparture = ($('#earliestDepartureYear').val() - 1) * 365 + ($('#earliestDepartureDay').val() - 1)
+  minDeparture = dateSeconds($('#earliestDepartureYear').val(), $('#earliestDepartureDay').val()) / secondsPerDay()
   maxDeparture = minDeparture + departureRange
   
-  minDays = Math.max(hohmannTransferTime - destination.orbit.period(), hohmannTransferTime / 2) / 3600 / 24
-  maxDays = minDays + Math.min(2 * destination.orbit.period(), hohmannTransferTime) / 3600 / 24
+  minDays = Math.max(hohmannTransferTime - destination.orbit.period(), hohmannTransferTime / 2) / secondsPerDay()
+  maxDays = minDays + Math.min(2 * destination.orbit.period(), hohmannTransferTime) / secondsPerDay()
   minDays = if minDays < 10 then minDays.toFixed(2) else minDays.toFixed()
   maxDays = if maxDays < 10 then maxDays.toFixed(2) else maxDays.toFixed()
   
-  $('#latestDepartureYear').val((maxDeparture / 365 | 0) + 1)
-  $('#latestDepartureDay').val((maxDeparture % 365) + 1)
+  $('#latestDepartureYear').val((maxDeparture / daysPerYear | 0) + 1)
+  $('#latestDepartureDay').val((maxDeparture % daysPerYear) + 1)
   $('#shortestTimeOfFlight').val(minDays)
   $('#longestTimeOfFlight').val(maxDays)
   
@@ -615,6 +622,16 @@ $(document).ready ->
     .click((event) -> event.preventDefault()).on 'show.bs.popover', ->
       $(this).next().find('.popover-content').html(ejectionDeltaVInfoContent())
   
+  $('#earthTime').click ->
+    hoursPerDay = 24
+    daysPerYear = 365
+    updateAdvancedControls()
+  
+  $('#kerbinTime').click ->
+    hoursPerDay = 6
+    daysPerYear = 426
+    updateAdvancedControls()
+    
   $('#originSelect').change (event) ->
     origin = CelestialBody[$(this).val()]
     referenceBody = origin.orbit.referenceBody
@@ -714,21 +731,18 @@ $(document).ready ->
     else
       finalOrbitalVelocity = destinationBody.circularOrbitVelocity(finalOrbit * 1e3)
     
-    earliestDeparture = ($('#earliestDepartureYear').val() - 1) * 365 + ($('#earliestDepartureDay').val() - 1)
-    earliestDeparture *= 24 * 3600
-    
-    latestDeparture = ($('#latestDepartureYear').val() - 1) * 365 + ($('#latestDepartureDay').val() - 1)
-    latestDeparture *= 24 * 3600
+    earliestDeparture = dateSeconds(+$('#earliestDepartureYear').val(), +$('#earliestDepartureDay').val())
+    latestDeparture = dateSeconds(+$('#latestDepartureYear').val(), +$('#latestDepartureDay').val())
     xScale = latestDeparture - earliestDeparture
     
-    shortestTimeOfFlight = +$('#shortestTimeOfFlight').val() * 24 * 3600
-    yScale = +$('#longestTimeOfFlight').val() * 24 * 3600 - shortestTimeOfFlight
+    shortestTimeOfFlight = durationSeconds(0, +$('#shortestTimeOfFlight').val())
+    yScale = durationSeconds(0, +$('#longestTimeOfFlight').val()) - shortestTimeOfFlight
     
     calculatePlot(true)
 
     description = "#{originBodyName} @#{+initialOrbit}km to #{destinationBodyName}"
     description += " @#{+finalOrbit}km" if finalOrbit
-    description += " after day #{earliestDeparture / (24 * 3600)} via #{$('#transferTypeSelect option:selected').text()} transfer"
+    description += " after day #{earliestDeparture / secondsPerDay()} via #{$('#transferTypeSelect option:selected').text()} transfer"
     ga('send', 'event', 'porkchop', 'submit', description)
 
   addBodyForm = (referenceBody) ->
