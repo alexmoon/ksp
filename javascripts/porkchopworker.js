@@ -17,7 +17,7 @@
   HEIGHT = 300;
 
   this.onmessage = function(event) {
-    var arrivalTime, deltaV, deltaVs, departureTime, destinationBody, destinationOrbit, earliestDeparture, error, finalOrbitalVelocity, i, initialOrbitalVelocity, lastProgress, maxDeltaV, minDeltaV, minDeltaVPoint, n1, now, originBody, originOrbit, originPositions, originVelocities, p1, p2, referenceBody, shortestTimeOfFlight, timeOfFlight, transfer, transferType, trueAnomaly, v1, v2, x, xResolution, y, yResolution, _i, _j, _k;
+    var arrivalTime, deltaV, deltaVCount, deltaVs, departureTime, destinationBody, destinationOrbit, earliestDeparture, error, finalOrbitalVelocity, i, initialOrbitalVelocity, lastProgress, logDeltaV, maxDeltaV, minDeltaV, minDeltaVPoint, n1, now, originBody, originOrbit, originPositions, originVelocities, p1, p2, referenceBody, shortestTimeOfFlight, sumLogDeltaV, sumSqLogDeltaV, timeOfFlight, transfer, transferType, trueAnomaly, v1, v2, x, xResolution, y, yResolution, _i, _j, _k;
 
     transferType = event.data.transferType;
     originBody = CelestialBody.fromJSON(event.data.originBody);
@@ -44,6 +44,9 @@
     i = 0;
     minDeltaV = Infinity;
     maxDeltaV = 0;
+    sumLogDeltaV = 0;
+    sumSqLogDeltaV = 0;
+    deltaVCount = 0;
     lastProgress = 0;
     for (y = _j = 0; 0 <= HEIGHT ? _j < HEIGHT : _j > HEIGHT; y = 0 <= HEIGHT ? ++_j : --_j) {
       timeOfFlight = shortestTimeOfFlight + ((HEIGHT - 1) - y) * yResolution;
@@ -67,6 +70,12 @@
         if (deltaV > maxDeltaV) {
           maxDeltaV = deltaV;
         }
+        if (!isNaN(deltaV)) {
+          logDeltaV = Math.log(deltaV);
+          sumLogDeltaV += logDeltaV;
+          sumSqLogDeltaV += logDeltaV * logDeltaV;
+          deltaVCount++;
+        }
       }
       now = Date.now();
       if (now - lastProgress > 100) {
@@ -81,7 +90,10 @@
         deltaVs: deltaVs.buffer,
         minDeltaV: minDeltaV,
         minDeltaVPoint: minDeltaVPoint,
-        maxDeltaV: maxDeltaV
+        maxDeltaV: maxDeltaV,
+        deltaVCount: deltaVCount,
+        sumLogDeltaV: sumLogDeltaV,
+        sumSqLogDeltaV: sumSqLogDeltaV
       }, [deltaVs.buffer]);
     } catch (_error) {
       error = _error;
@@ -89,7 +101,10 @@
         deltaVs: deltaVs,
         minDeltaV: minDeltaV,
         minDeltaVPoint: minDeltaVPoint,
-        maxDeltaV: maxDeltaV
+        maxDeltaV: maxDeltaV,
+        deltaVCount: deltaVCount,
+        sumLogDeltaV: sumLogDeltaV,
+        sumSqLogDeltaV: sumSqLogDeltaV
       });
     }
   };

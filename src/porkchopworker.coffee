@@ -37,6 +37,9 @@ HEIGHT = 300
   i = 0
   minDeltaV = Infinity
   maxDeltaV = 0
+  sumLogDeltaV = 0
+  sumSqLogDeltaV = 0
+  deltaVCount = 0
   lastProgress = 0
   for y in [0...HEIGHT]
     timeOfFlight = shortestTimeOfFlight + ((HEIGHT-1) - y) * yResolution
@@ -60,6 +63,11 @@ HEIGHT = 300
         minDeltaVPoint = { x: x, y: y }
       
       maxDeltaV = deltaV if deltaV > maxDeltaV
+      unless isNaN(deltaV)
+        logDeltaV = Math.log(deltaV)
+        sumLogDeltaV += logDeltaV
+        sumSqLogDeltaV += logDeltaV * logDeltaV
+        deltaVCount++
     
     now = Date.now()
     if now - lastProgress > 100
@@ -68,7 +76,7 @@ HEIGHT = 300
   
   try
     # Try to use transferable objects first to save about 1 MB memcpy
-    postMessage({ deltaVs: deltaVs.buffer, minDeltaV: minDeltaV, minDeltaVPoint: minDeltaVPoint, maxDeltaV: maxDeltaV }, [deltaVs.buffer])
+    postMessage({ deltaVs: deltaVs.buffer, minDeltaV: minDeltaV, minDeltaVPoint: minDeltaVPoint, maxDeltaV: maxDeltaV, deltaVCount: deltaVCount, sumLogDeltaV: sumLogDeltaV, sumSqLogDeltaV: sumSqLogDeltaV }, [deltaVs.buffer])
   catch error
     # Fallback to compatible version
-    postMessage({ deltaVs: deltaVs, minDeltaV: minDeltaV, minDeltaVPoint: minDeltaVPoint, maxDeltaV: maxDeltaV })
+    postMessage({ deltaVs: deltaVs, minDeltaV: minDeltaV, minDeltaVPoint: minDeltaVPoint, maxDeltaV: maxDeltaV, deltaVCount: deltaVCount, sumLogDeltaV: sumLogDeltaV, sumSqLogDeltaV: sumSqLogDeltaV })

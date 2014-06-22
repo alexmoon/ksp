@@ -122,7 +122,9 @@ worker.onmessage = (event) ->
     deltaVs = event.data.deltaVs
     deltaVs = new Float64Array(deltaVs) if deltaVs instanceof ArrayBuffer
     logMinDeltaV = Math.log(event.data.minDeltaV)
-    logMaxDeltaV = Math.log(event.data.maxDeltaV)
+    mean = event.data.sumLogDeltaV / event.data.deltaVCount
+    stddev = Math.sqrt(event.data.sumSqLogDeltaV / event.data.deltaVCount - mean * mean)
+    logMaxDeltaV = Math.min(Math.log(event.data.maxDeltaV), mean + 2 * stddev)
     
     i = 0
     j = 0

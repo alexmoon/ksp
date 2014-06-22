@@ -234,7 +234,7 @@
   worker = new Worker("javascripts/porkchopworker.js");
 
   worker.onmessage = function(event) {
-    var color, colorIndex, j, logDeltaV, logMaxDeltaV, logMinDeltaV, relativeDeltaV, x, y, _n, _o;
+    var color, colorIndex, j, logDeltaV, logMaxDeltaV, logMinDeltaV, mean, relativeDeltaV, stddev, x, y, _n, _o;
 
     if ('log' in event.data) {
       return console.log.apply(console, event.data.log);
@@ -247,7 +247,9 @@
         deltaVs = new Float64Array(deltaVs);
       }
       logMinDeltaV = Math.log(event.data.minDeltaV);
-      logMaxDeltaV = Math.log(event.data.maxDeltaV);
+      mean = event.data.sumLogDeltaV / event.data.deltaVCount;
+      stddev = Math.sqrt(event.data.sumSqLogDeltaV / event.data.deltaVCount - mean * mean);
+      logMaxDeltaV = Math.min(Math.log(event.data.maxDeltaV), mean + 2 * stddev);
       i = 0;
       j = 0;
       for (y = _n = 0; 0 <= PLOT_HEIGHT ? _n < PLOT_HEIGHT : _n > PLOT_HEIGHT; y = 0 <= PLOT_HEIGHT ? ++_n : --_n) {
