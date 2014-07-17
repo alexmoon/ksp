@@ -659,6 +659,7 @@ $(document).ready ->
   $('#originSelect').change()
   $('#destinationSelect').val('Duna')
   $('#destinationSelect').change()
+  $('#earthTime').click() if $('#earthTime').prop('checked')
   
   $('#noInsertionBurnCheckbox').change (event) ->
     if CelestialBody[$('#destinationSelect').val()].mass?

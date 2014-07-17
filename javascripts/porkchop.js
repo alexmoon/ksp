@@ -886,6 +886,9 @@
     $('#originSelect').change();
     $('#destinationSelect').val('Duna');
     $('#destinationSelect').change();
+    if ($('#earthTime').prop('checked')) {
+      $('#earthTime').click();
+    }
     $('#noInsertionBurnCheckbox').change(function(event) {
       if (CelestialBody[$('#destinationSelect').val()].mass != null) {
         return $('#finalOrbit').attr("disabled", $(this).is(":checked"));
