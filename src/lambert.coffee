@@ -9,7 +9,7 @@ acoth = (x) -> 0.5 * Math.log((x + 1) / (x - 1))
 
 relativeError = (a, b) -> Math.abs(1.0 - a / b)
 
-findRoot = (a, b, relativeAccuracy, f, df, ddf) ->
+brentsMethod = (a, b, relativeAccuracy, f) ->
   c = a
   fa = f(a)
   fb = f(b)
@@ -76,7 +76,7 @@ findRoot = (a, b, relativeAccuracy, f, df, ddf) ->
       d = e = b - a
     
     i++
-  
+
 @lambert = (mu, pos1, pos2, dt, maxRevs = 0, prograde = 1) ->
   # Based on Sun, F.T. "On the Minium Time Trajectory and Multiple Solutions of Lambert's Problem"
   # AAS/AIAA Astrodynamics Conference, Provincetown, Massachusetts, AAS 79-164, June 25-27, 1979
@@ -147,7 +147,7 @@ findRoot = (a, b, relativeAccuracy, f, df, ddf) ->
     until ftau(x2) < 0.0 # Exponential search to find our upper hyperbolic bound
       x1 = x2
       x2 *= 2.0 
-    x = findRoot(x1, x2, 1e-4, ftau)
+    x = brentsMethod(x1, x2, 1e-4, ftau)
     pushSolution(x, fy(x), N)
   else # Potentially multiple elliptical solutions
     maxRevs = Math.min(maxRevs, Math.floor(normalizedTime / Math.PI))
@@ -167,10 +167,10 @@ findRoot = (a, b, relativeAccuracy, f, df, ddf) ->
           xMT = 0
           minimumNormalizedTime = minimumEnergyNormalizedTime
         else if angleParameter == 0
-          xMT = findRoot(0, 1, 1e-6, (x) -> phix(x) + N * Math.PI)
+          xMT = brentsMethod(0, 1, 1e-6, (x) -> phix(x) + N * Math.PI)
           minimumNormalizedTime = 2 / (3 * xMT)
         else
-          xMT = findRoot(0, 1, 1e-6, (x) -> phix(x) - phiy(fy(x)) + N * Math.PI)
+          xMT = brentsMethod(0, 1, 1e-6, (x) -> phix(x) - phiy(fy(x)) + N * Math.PI)
           minimumNormalizedTime = 2 / 3 * (1 / xMT - angleParameter * angleParameter * angleParameter / Math.abs(fy(xMT)))
         
         if relativeError(normalizedTime, minimumNormalizedTime) < 1e-6
@@ -182,23 +182,23 @@ findRoot = (a, b, relativeAccuracy, f, df, ddf) ->
           break
         else if normalizedTime < minimumEnergyNormalizedTime
           # Two low path solutions
-          x = findRoot(0, xMT, 1e-4, ftau)
+          x = brentsMethod(0, xMT, 1e-4, ftau)
           pushSolution(x, fy(x), N) unless isNaN(x)
-          x = findRoot(xMT, 1.0 - MACHINE_EPSILON, 1e-4, ftau)
+          x = brentsMethod(xMT, 1.0 - MACHINE_EPSILON, 1e-4, ftau)
           pushSolution(x, fy(x), N) unless isNaN(x)
           break
       
       if relativeError(normalizedTime, minimumEnergyNormalizedTime) < 1e-6  
         pushSolution(0, fy(0), N) # The minimum energy elliptical solution
         if N > 0 # For N > 0 there is also a low path solution
-          x = findRoot(1e-6, 1.0 - MACHINE_EPSILON, 1e-4, ftau)
+          x = brentsMethod(1e-6, 1.0 - MACHINE_EPSILON, 1e-4, ftau)
           pushSolution(x, fy(x), N) unless isNaN(x)
       else
         if N > 0 or normalizedTime > minimumEnergyNormalizedTime # High path solution
-          x = findRoot(-1.0 + MACHINE_EPSILON, 0, 1e-4, ftau)
+          x = brentsMethod(-1.0 + MACHINE_EPSILON, 0, 1e-4, ftau)
           pushSolution(x, fy(x), N) unless isNaN(x)
         if N > 0 or normalizedTime < minimumEnergyNormalizedTime # Low path solution
-          x = findRoot(0, 1.0 - MACHINE_EPSILON, 1e-4, ftau)
+          x = brentsMethod(0, 1.0 - MACHINE_EPSILON, 1e-4, ftau)
           pushSolution(x, fy(x), N) unless isNaN(x)
       
       minimumEnergyNormalizedTime += Math.PI
