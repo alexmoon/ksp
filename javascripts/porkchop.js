@@ -255,9 +255,13 @@
       for (y = _n = 0; 0 <= PLOT_HEIGHT ? _n < PLOT_HEIGHT : _n > PLOT_HEIGHT; y = 0 <= PLOT_HEIGHT ? ++_n : --_n) {
         for (x = _o = 0; 0 <= PLOT_WIDTH ? _o < PLOT_WIDTH : _o > PLOT_WIDTH; x = 0 <= PLOT_WIDTH ? ++_o : --_o) {
           logDeltaV = Math.log(deltaVs[i++]);
-          relativeDeltaV = isNaN(logDeltaV) ? 1.0 : (logDeltaV - logMinDeltaV) / (logMaxDeltaV - logMinDeltaV);
-          colorIndex = Math.min(relativeDeltaV * palette.length | 0, palette.length - 1);
-          color = palette[colorIndex];
+          if (isNaN(logDeltaV)) {
+            color = [255, 255, 255];
+          } else {
+            relativeDeltaV = isNaN(logDeltaV) ? 1.0 : (logDeltaV - logMinDeltaV) / (logMaxDeltaV - logMinDeltaV);
+            colorIndex = Math.min(relativeDeltaV * palette.length | 0, palette.length - 1);
+            color = palette[colorIndex];
+          }
           plotImageData.data[j++] = color[0];
           plotImageData.data[j++] = color[1];
           plotImageData.data[j++] = color[2];

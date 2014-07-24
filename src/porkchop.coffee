@@ -131,9 +131,12 @@ worker.onmessage = (event) ->
     for y in [0...PLOT_HEIGHT]
       for x in [0...PLOT_WIDTH]
         logDeltaV = Math.log(deltaVs[i++])
-        relativeDeltaV = if isNaN(logDeltaV) then 1.0 else (logDeltaV - logMinDeltaV) / (logMaxDeltaV - logMinDeltaV)
-        colorIndex = Math.min(relativeDeltaV * palette.length | 0, palette.length - 1)
-        color = palette[colorIndex]
+        if isNaN(logDeltaV)
+          color = [255, 255, 255]
+        else
+          relativeDeltaV = if isNaN(logDeltaV) then 1.0 else (logDeltaV - logMinDeltaV) / (logMaxDeltaV - logMinDeltaV)
+          colorIndex = Math.min(relativeDeltaV * palette.length | 0, palette.length - 1)
+          color = palette[colorIndex]
         plotImageData.data[j++] = color[0]
         plotImageData.data[j++] = color[1]
         plotImageData.data[j++] = color[2]
