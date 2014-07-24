@@ -6,6 +6,8 @@
 
   importScripts('quaternion.js');
 
+  importScripts('roots.js');
+
   importScripts('lambert.js');
 
   importScripts('orbit.js');

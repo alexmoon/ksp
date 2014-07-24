@@ -6,11 +6,7 @@
 
   HALF_PI = 0.5 * Math.PI;
 
-  MACHINE_EPSILON = 1.0;
-
-  while ((1.0 + MACHINE_EPSILON) !== 1.0) {
-    MACHINE_EPSILON *= 0.5;
-  }
+  MACHINE_EPSILON = roots.MACHINE_EPSILON;
 
   acot = function(x) {
     return HALF_PI - Math.atan(x);
@@ -24,77 +20,7 @@
     return Math.abs(1.0 - a / b);
   };
 
-  brentsMethod = function(a, b, relativeAccuracy, f) {
-    var c, d, e, fa, fb, fc, i, m, p, q, r, s, tol;
-
-    c = a;
-    fa = f(a);
-    fb = f(b);
-    fc = fa;
-    d = b - a;
-    e = d;
-    if (fa / fb > 0) {
-      return NaN;
-    }
-    i = 0;
-    while (true) {
-      if (Math.abs(fc) < Math.abs(fb)) {
-        a = b;
-        b = c;
-        c = a;
-        fa = fb;
-        fb = fc;
-        fc = fa;
-      }
-      tol = (0.5 * MACHINE_EPSILON + relativeAccuracy) * Math.abs(b);
-      m = 0.5 * (c - b);
-      if (fb === 0 || Math.abs(m) <= tol) {
-        return b;
-      }
-      if (i > 100) {
-        throw "Brent's method failed to converge after 100 iterations";
-      }
-      if (Math.abs(e) < tol || Math.abs(fa) <= Math.abs(fb)) {
-        d = e = m;
-      } else {
-        s = fb / fa;
-        if (a === c) {
-          p = 2 * m * s;
-          q = 1 - s;
-        } else {
-          q = fa / fc;
-          r = fb / fc;
-          p = s * (2 * m * q * (q - r) - (b - a) * (r - 1));
-          q = (q - 1) * (r - 1) * (s - 1);
-        }
-        if (p > 0) {
-          q = -q;
-        } else {
-          p = -p;
-        }
-        if (2 * p < Math.min(3 * m * q - Math.abs(tol * q), Math.abs(e * q))) {
-          e = d;
-          d = p / q;
-        } else {
-          d = e = m;
-        }
-      }
-      a = b;
-      fa = fb;
-      if (Math.abs(d) > tol) {
-        b += d;
-      } else {
-        b += m > 0 ? tol : -tol;
-      }
-      fb = f(b);
-      if ((fb < 0 && fc < 0) || (fb > 0 && fc > 0)) {
-        c = a;
-        fc = fa;
-        d = e = b - a;
-      }
-      i++;
-    }
-  };
+  brentsMethod = roots.brentsMethod;
 
   this.lambert = function(mu, pos1, pos2, dt, maxRevs, prograde) {
     var N, angleParameter, c, deltaPos, ftau, fy, invSqrtM, invSqrtN, m, minimumEnergyNormalizedTime, minimumNormalizedTime, n, normalizedTime, parabolicNormalizedTime, phix, phiy, pushSolution, r1, r2, solutions, sqrtMu, transferAngle, x, x1, x2, xMT, y, _i;

@@ -1,7 +1,6 @@
 # Utility functions and constants
 TWO_PI = 2 * Math.PI
 HALF_PI = 0.5 * Math.PI
-GOLDEN_RATIO = (1 + Math.sqrt(5)) / 2
 
 sign = (x) ->
   if typeof x == 'number' # JIT compiler hint
@@ -42,38 +41,10 @@ angleInPlane = (from, to, normal) ->
   to = quaternion.rotate(rot, to)
   result = Math.atan2(from[1], from[0]) - Math.atan2(to[1], to[0])
   if result < 0 then result + TWO_PI else result
-  
-# Finds the minimum of f(x) between x1 and x2. Returns x.
-# See: http://en.wikipedia.org/wiki/Golden_section_search
-goldenSectionSearch = (x1, x2, epsilon, f) ->
-  k = 2 - GOLDEN_RATIO
-  x3 = x2
-  x2 = x1 + k * (x3 - x1)
-  
-  y2 = f(x2)
-  
-  loop
-    if (x3 - x2) > (x2 - x1)
-      x = x2 + k * (x3 - x2)
-    else
-      x = x2 - k * (x2 - x1)
-    
-    return (x3 + x1) / 2 if (x3 - x1) < (epsilon * (x2 + x)) # Close enough
-    
-    y = f(x)
-    if y < y2
-      if (x3 - x2) > (x2 - x1) then x1 = x2 else x3 = x2
-      x2 = x
-      y2 = y
-    else
-      if (x3 - x2) > (x2 - x1) then x3 = x else x1 = x
 
-# Finds the root of f(x) near x0 given df(x) = f'(x)
-newtonsMethod = (x0, f, df) ->
-  loop
-    x = x0 - f(x0) / df(x0)
-    return x if isNaN(x) or Math.abs(x - x0) < 1e-6 # Close enough
-    x0 = x
+newtonsMethod = roots.newtonsMethod
+brentsMethod = roots.brentsMethod
+goldenSectionSearch = roots.goldenSectionSearch
 
 (exports ? this).Orbit = class Orbit
   constructor: (@referenceBody, @semiMajorAxis, @eccentricity, inclination,

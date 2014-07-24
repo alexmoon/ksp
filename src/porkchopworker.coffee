@@ -1,5 +1,6 @@
 importScripts('numeric-1.2.6.min.js')
 importScripts('quaternion.js')
+importScripts('roots.js')
 importScripts('lambert.js')
 importScripts('orbit.js')
 importScripts('celestialbodies.js')

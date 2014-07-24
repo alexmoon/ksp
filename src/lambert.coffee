@@ -1,81 +1,13 @@
 TWO_PI = 2 * Math.PI
 HALF_PI = 0.5 * Math.PI
-
-MACHINE_EPSILON = 1.0
-MACHINE_EPSILON *= 0.5 until (1.0 + MACHINE_EPSILON) == 1.0
+MACHINE_EPSILON = roots.MACHINE_EPSILON
 
 acot = (x) -> HALF_PI - Math.atan(x)
 acoth = (x) -> 0.5 * Math.log((x + 1) / (x - 1))
 
 relativeError = (a, b) -> Math.abs(1.0 - a / b)
 
-brentsMethod = (a, b, relativeAccuracy, f) ->
-  c = a
-  fa = f(a)
-  fb = f(b)
-  fc = fa
-  d = b - a
-  e = d
-  
-  return NaN if fa / fb > 0 # Can't find a root if the signs of fa and fb are equal
-  
-  i = 0
-  loop
-    if Math.abs(fc) < Math.abs(fb)
-      a = b
-      b = c
-      c = a
-      fa = fb
-      fb = fc
-      fc = fa
-    
-    tol = (0.5 * MACHINE_EPSILON + relativeAccuracy) * Math.abs(b)
-    m = 0.5 * (c - b)
-    
-    return b if fb == 0 or Math.abs(m) <= tol
-    throw "Brent's method failed to converge after 100 iterations" if i > 100
-    
-    if Math.abs(e) < tol or Math.abs(fa) <= Math.abs(fb) # Use a bisection step
-      d = e = m
-    else
-      s = fb / fa
-      
-      if a == c # Use a linear interpolation step
-        p = 2 * m *s
-        q = 1 - s
-      else # Use a parabolic interpolation step
-        q = fa / fc
-        r = fb / fc
-        p = s * (2 * m * q * (q - r) - (b - a) * (r - 1))
-        q = (q - 1) * (r - 1) * (s - 1)
-      
-      if p > 0
-        q = -q
-      else
-        p = -p
-      
-      if 2 * p < Math.min(3 * m * q - Math.abs(tol * q), Math.abs(e * q)) # Validate interpolation
-        e = d
-        d = p / q
-      else # Fall back to bisection
-        d = e = m
-    
-    a = b
-    fa = fb
-    
-    if (Math.abs(d) > tol)
-      b += d
-    else
-      b += if m > 0 then tol else -tol
-    
-    fb = f(b)
-    
-    if (fb < 0 and fc < 0) or (fb > 0 and fc > 0)
-      c = a
-      fc = fa
-      d = e = b - a
-    
-    i++
+brentsMethod = roots.brentsMethod
 
 @lambert = (mu, pos1, pos2, dt, maxRevs = 0, prograde = 1) ->
   # Based on Sun, F.T. "On the Minium Time Trajectory and Multiple Solutions of Lambert's Problem"
