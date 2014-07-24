@@ -32,7 +32,7 @@ crossProduct = (a, b) ->
 
 normalize = (v) -> numeric.divVS(v, numeric.norm2(v))
 
-projectToPlane = (p, n) -> numeric.subVV(p, numeric.mulSV(numeric.dot(p, n), n))
+projectToPlane = (p, n) -> numeric.subVV(p, numeric.mulSV(numeric.dotVV(p, n), n))
 
 angleInPlane = (from, to, normal) ->
   from = normalize(projectToPlane(from, normal))
@@ -125,11 +125,11 @@ newtonsMethod = (x0, f, df) ->
     n = @normalVector()
     p1 = @positionAtTrueAnomaly(@trueAnomalyAt(t))
     p2 = orbit.positionAtTrueAnomaly(orbit.trueAnomalyAt(t))
-    p2 = numeric.subVV(p2, numeric.mulVS(n, numeric.dot(p2, n))) # Project p2 onto our orbital plane
+    p2 = numeric.subVV(p2, numeric.mulVS(n, numeric.dotVV(p2, n))) # Project p2 onto our orbital plane
     r1 = numeric.norm2(p1)
     r2 = numeric.norm2(p2)
-    phaseAngle = Math.acos(numeric.dot(p1, p2) / (r1 * r2))
-    phaseAngle = TWO_PI - phaseAngle if numeric.dot(crossProduct(p1, p2), n) < 0
+    phaseAngle = Math.acos(numeric.dotVV(p1, p2) / (r1 * r2))
+    phaseAngle = TWO_PI - phaseAngle if numeric.dotVV(crossProduct(p1, p2), n) < 0
     phaseAngle = phaseAngle - TWO_PI if orbit.semiMajorAxis < @semiMajorAxis
     phaseAngle
     
@@ -262,7 +262,7 @@ Orbit.fromPositionAndVelocity = (referenceBody, position, velocity, t) ->
     nodeVector = normalize([-specificAngularMomentum[1], specificAngularMomentum[0], 0]) # Eq. 5.22
   else
     nodeVector = [1, 0, 0]
-  eccentricityVector = numeric.mulSV(1 / mu, numeric.subVV(numeric.mulSV(v*v - mu / r, position), numeric.mulSV(numeric.dot(position, velocity), velocity))) # Eq. 5.23
+  eccentricityVector = numeric.mulSV(1 / mu, numeric.subVV(numeric.mulSV(v*v - mu / r, position), numeric.mulSV(numeric.dotVV(position, velocity), velocity))) # Eq. 5.23
   
   semiMajorAxis = 1 / (2 / r - v * v / mu) # Eq. 5.24
   eccentricity = numeric.norm2(eccentricityVector) # Eq. 5.25
@@ -275,11 +275,11 @@ Orbit.fromPositionAndVelocity = (referenceBody, position, velocity, t) ->
   else
     orbit.longitudeOfAscendingNode = Math.acos(nodeVector[0]) # Eq. 5.27
     orbit.longitudeOfAscendingNode = TWO_PI - orbit.longitudeOfAscendingNode if nodeVector[1] < 0
-    orbit.argumentOfPeriapsis = Math.acos(numeric.dot(nodeVector, eccentricityVector) / eccentricity) # Eq. 5.28
+    orbit.argumentOfPeriapsis = Math.acos(numeric.dotVV(nodeVector, eccentricityVector) / eccentricity) # Eq. 5.28
     orbit.argumentOfPeriapsis = TWO_PI - orbit.argumentOfPeriapsis if eccentricityVector[2] < 0
   
-  trueAnomaly = Math.acos(numeric.dot(eccentricityVector, position) / (eccentricity * r)) # Eq. 5.29
-  trueAnomaly = -trueAnomaly if numeric.dot(position, velocity) < 0
+  trueAnomaly = Math.acos(numeric.dotVV(eccentricityVector, position) / (eccentricity * r)) # Eq. 5.29
+  trueAnomaly = -trueAnomaly if numeric.dotVV(position, velocity) < 0
   
   meanAnomaly = orbit.meanAnomalyAtTrueAnomaly(trueAnomaly)
   orbit.timeOfPeriapsisPassage = t - meanAnomaly / orbit.meanMotion()
@@ -344,9 +344,9 @@ ejectionAngle = (vsoi, theta, prograde) ->
   
   prograde = [prograde[0], prograde[1], 0] # Project the prograde vector onto the XY plane
   if crossProduct([vx, vy, 0], prograde)[2] < 0
-    TWO_PI - Math.acos(numeric.dot([vx, vy, 0], prograde))
+    TWO_PI - Math.acos(numeric.dotVV([vx, vy, 0], prograde))
   else
-    Math.acos(numeric.dot([vx, vy, 0], prograde))
+    Math.acos(numeric.dotVV([vx, vy, 0], prograde))
 
 Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity, p0, v0, n0, p1, v1, planeChangeAngleToIntercept) ->
   # Fill in missing values
@@ -382,7 +382,7 @@ Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbi
     # in the target position rotated into the origin plane as the plane change axis changes.
     # This approximation should be valid so long as the transfer orbit's semi-major axis and eccentricity
     # does not change significantly with the change in the plane change axis.
-    relativeInclination = Math.asin(numeric.dot(p1, n0) / numeric.norm2(p1))
+    relativeInclination = Math.asin(numeric.dotVV(p1, n0) / numeric.norm2(p1))
     planeChangeRotation = quaternion.fromAngleAxis(-relativeInclination, crossProduct(p1, n0))
     p1InOriginPlane = quaternion.rotate(planeChangeRotation, p1)
     v1InOriginPlane = quaternion.rotate(planeChangeRotation, v1)
@@ -409,7 +409,7 @@ Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbi
     return Orbit.transfer("planeChange", originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity, p0, v0, n0, p1, v1, x)
   else if transferType == "planeChange"
     planeChangeAngleToIntercept ?= HALF_PI
-    relativeInclination = Math.asin(numeric.dot(p1, n0) / numeric.norm2(p1))
+    relativeInclination = Math.asin(numeric.dotVV(p1, n0) / numeric.norm2(p1))
     planeChangeAngle = Math.atan2(Math.tan(relativeInclination), Math.sin(planeChangeAngleToIntercept))
     if planeChangeAngle != 0
       planeChangeAxis = quaternion.rotate(quaternion.fromAngleAxis(-planeChangeAngleToIntercept, n0), projectToPlane(p1, n0))
@@ -417,7 +417,7 @@ Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbi
       p1InOriginPlane = quaternion.rotate(quaternion.conjugate(planeChangeRotation), p1)
   
   # Assume a counter-clockwise transfer around the +z axis
-  transferAngle = Math.acos(numeric.dot(p0, p1) / (numeric.norm2(p0) * numeric.norm2(p1)))
+  transferAngle = Math.acos(numeric.dotVV(p0, p1) / (numeric.norm2(p0) * numeric.norm2(p1)))
   transferAngle = TWO_PI - transferAngle if p0[0] * p1[1] - p0[1] * p1[0] < 0 # (p0 x p1).z
 
   if !planeChangeAngle or transferAngle <= HALF_PI
@@ -507,13 +507,13 @@ Orbit.transferDetails = (transfer, originBody, t0, initialOrbitalVelocity) ->
     n0 = originBody.orbit.normalVector()
     burnDirection = numeric.divVS(ejectionDeltaVector, ejectionDeltaV)
     
-    transfer.ejectionPitch = Math.asin(numeric.dot(burnDirection, positionDirection))
+    transfer.ejectionPitch = Math.asin(numeric.dotVV(burnDirection, positionDirection))
     transfer.ejectionHeading = angleInPlane([0,0,1], burnDirection, positionDirection)
     
-    progradeDeltaV = numeric.dot(ejectionDeltaVector, progradeDirection)
-    normalDeltaV = numeric.dot(ejectionDeltaVector, n0)
+    progradeDeltaV = numeric.dotVV(ejectionDeltaVector, progradeDirection)
+    normalDeltaV = numeric.dotVV(ejectionDeltaVector, n0)
     radialDeltaV = Math.sqrt(ejectionDeltaV*ejectionDeltaV - progradeDeltaV*progradeDeltaV - normalDeltaV*normalDeltaV)
-    radialDeltaV = -radialDeltaV if numeric.dot(crossProduct(burnDirection, progradeDirection), n0) < 0
+    radialDeltaV = -radialDeltaV if numeric.dotVV(crossProduct(burnDirection, progradeDirection), n0) < 0
     
     transfer.ejectionProgradeDeltaV = progradeDeltaV
     transfer.ejectionNormalDeltaV = normalDeltaV
@@ -608,14 +608,14 @@ Orbit.courseCorrection = (transferOrbit, destinationOrbit, burnTime, eta) ->
   burnDirection = numeric.divVS(deltaVector, deltaV)
   positionDirection = numeric.divVS(p0, numeric.norm2(p0))
   
-  pitch = Math.asin(numeric.dot(burnDirection, positionDirection))
+  pitch = Math.asin(numeric.dotVV(burnDirection, positionDirection))
   heading = angleInPlane([0,0,1], burnDirection, positionDirection)
   
   progradeDirection = numeric.divVS(v0, numeric.norm2(v0))
-  progradeDeltaV = numeric.dot(deltaVector, progradeDirection)
-  normalDeltaV = numeric.dot(deltaVector, n0)
+  progradeDeltaV = numeric.dotVV(deltaVector, progradeDirection)
+  normalDeltaV = numeric.dotVV(deltaVector, n0)
   radialDeltaV = Math.sqrt(deltaV*deltaV - progradeDeltaV*progradeDeltaV - normalDeltaV*normalDeltaV)
-  radialDeltaV = -radialDeltaV if numeric.dot(crossProduct(burnDirection, progradeDirection), n0) < 0
+  radialDeltaV = -radialDeltaV if numeric.dotVV(crossProduct(burnDirection, progradeDirection), n0) < 0
   
   return {
     correctedVelocity: correctedVelocity

@@ -90,7 +90,7 @@ brentsMethod = (a, b, relativeAccuracy, f) ->
   n = r1 + r2 - c
   
   # Assume we want a prograde orbit counter-clockwise around the +z axis
-  transferAngle = Math.acos(numeric.dot(pos1, pos2) / (r1 * r2))
+  transferAngle = Math.acos(numeric.dotVV(pos1, pos2) / (r1 * r2))
   transferAngle = TWO_PI - transferAngle if (pos1[0] * pos2[1] - pos1[1] * pos2[0]) * prograde < 0 # (pos1 x pos2).z
   
   angleParameter = Math.sqrt(n / m)

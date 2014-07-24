@@ -111,7 +111,7 @@
     c = numeric.norm2(deltaPos);
     m = r1 + r2 + c;
     n = r1 + r2 - c;
-    transferAngle = Math.acos(numeric.dot(pos1, pos2) / (r1 * r2));
+    transferAngle = Math.acos(numeric.dotVV(pos1, pos2) / (r1 * r2));
     if ((pos1[0] * pos2[1] - pos1[1] * pos2[0]) * prograde < 0) {
       transferAngle = TWO_PI - transferAngle;
     }
