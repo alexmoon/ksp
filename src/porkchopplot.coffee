@@ -29,6 +29,8 @@ class PorkchopPlot
     @worker = new Worker("javascripts/porkchopworker.js")
     @worker.onmessage = (event) => workerMessage.call(@, event)
     
+    $(KerbalTime).on 'dateFormatChanged', (event) => @drawAxisLabels() if @mission?
+    
     $('.zoomInBtn', @container).click (event) => @zoomIn()
     $('.zoomOutBtn', @container).click (event) => @zoomOut()
     
@@ -79,21 +81,11 @@ class PorkchopPlot
     ctx = @canvasContext
     ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT) if erase
     ctx.clearRect(PLOT_X_OFFSET + PLOT_WIDTH + 85, 0, 95, PLOT_HEIGHT + 10)
-    ctx.clearRect(20, 0, PLOT_X_OFFSET - TIC_LENGTH - 21, PLOT_HEIGHT + TIC_LENGTH)
-    ctx.clearRect(PLOT_X_OFFSET - 40, PLOT_HEIGHT + TIC_LENGTH, PLOT_WIDTH + 80, 20)
-  
-    ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif'
-    ctx.fillStyle = 'black'
-    ctx.textAlign = 'right'
-    ctx.textBaseline = 'middle'
-    for i in [0..1.0] by 0.25
-      ctx.textBaseline = 'top' if i == 1.0
-      ctx.fillText(((@mission.shortestTimeOfFlight + i * @mission.yScale) / KerbalTime.secondsPerDay()) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT)
-    ctx.textAlign = 'center'
-    for i in [0..1.0] by 0.25
-      ctx.fillText(((@mission.earliestDeparture + i * @mission.xScale) / KerbalTime.secondsPerDay()) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3)
+    
+    @drawAxisLabels()
     
     @deltaVs = null
+    @selectedPoint = null
     @worker.postMessage(@mission)
     
     $('#porkchopContainer button').prop('disabled', true)
@@ -225,6 +217,26 @@ class PorkchopPlot
 
     ctx.restore()
 
+  drawAxisLabels: ->
+    ctx = @canvasContext
+    ctx.save()
+    
+    ctx.clearRect(20, 0, PLOT_X_OFFSET - TIC_LENGTH - 21, PLOT_HEIGHT + TIC_LENGTH)
+    ctx.clearRect(PLOT_X_OFFSET - 40, PLOT_HEIGHT + TIC_LENGTH, PLOT_WIDTH + 80, 20)
+  
+    ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif'
+    ctx.fillStyle = 'black'
+    ctx.textAlign = 'right'
+    ctx.textBaseline = 'middle'
+    for i in [0..1.0] by 0.25
+      ctx.textBaseline = 'top' if i == 1.0
+      ctx.fillText(((@mission.shortestTimeOfFlight + i * @mission.yScale) / KerbalTime.secondsPerDay()) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT)
+    ctx.textAlign = 'center'
+    for i in [0..1.0] by 0.25
+      ctx.fillText(((@mission.earliestDeparture + i * @mission.xScale) / KerbalTime.secondsPerDay()) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3)
+    
+    ctx.restore()
+    
   drawDeltaVScale = (logMinDeltaV, logMaxDeltaV) ->
     ctx = @canvasContext
     ctx.save()

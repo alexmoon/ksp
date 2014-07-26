@@ -139,6 +139,11 @@
     }).on('click', function(event, point) {
       return showTransferDetailsForPoint(point);
     });
+    $(KerbalTime).on('dateFormatChanged', function(event) {
+      if (porkchopPlot.selectedPoint != null) {
+        return showTransferDetailsForPoint(porkchopPlot.selectedPoint);
+      }
+    });
     $('#refineTransferBtn').click(function(event) {
       var dt, mission, t0, transfer, x, y, _ref;
 

@@ -54,6 +54,11 @@
       this.worker.onmessage = function(event) {
         return workerMessage.call(_this, event);
       };
+      $(KerbalTime).on('dateFormatChanged', function(event) {
+        if (_this.mission != null) {
+          return _this.drawAxisLabels();
+        }
+      });
       $('.zoomInBtn', this.container).click(function(event) {
         return _this.zoomIn();
       });
@@ -136,7 +141,7 @@
     }
 
     PorkchopPlot.prototype.calculate = function(mission, erase) {
-      var ctx, _n, _o;
+      var ctx;
 
       this.mission = mission;
       if (erase == null) {
@@ -149,23 +154,9 @@
         ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT);
       }
       ctx.clearRect(PLOT_X_OFFSET + PLOT_WIDTH + 85, 0, 95, PLOT_HEIGHT + 10);
-      ctx.clearRect(20, 0, PLOT_X_OFFSET - TIC_LENGTH - 21, PLOT_HEIGHT + TIC_LENGTH);
-      ctx.clearRect(PLOT_X_OFFSET - 40, PLOT_HEIGHT + TIC_LENGTH, PLOT_WIDTH + 80, 20);
-      ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif';
-      ctx.fillStyle = 'black';
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'middle';
-      for (i = _n = 0; 0.25 > 0 ? _n <= 1.0 : _n >= 1.0; i = _n += 0.25) {
-        if (i === 1.0) {
-          ctx.textBaseline = 'top';
-        }
-        ctx.fillText(((this.mission.shortestTimeOfFlight + i * this.mission.yScale) / KerbalTime.secondsPerDay()) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT);
-      }
-      ctx.textAlign = 'center';
-      for (i = _o = 0; 0.25 > 0 ? _o <= 1.0 : _o >= 1.0; i = _o += 0.25) {
-        ctx.fillText(((this.mission.earliestDeparture + i * this.mission.xScale) / KerbalTime.secondsPerDay()) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3);
-      }
+      this.drawAxisLabels();
       this.deltaVs = null;
+      this.selectedPoint = null;
       this.worker.postMessage(this.mission);
       $('#porkchopContainer button').prop('disabled', true);
       return $(this).trigger('plotStarted');
@@ -297,6 +288,30 @@
       }
       ctx.putImageData(paletteKey, PLOT_X_OFFSET + PLOT_WIDTH + 60, 0);
       ctx.fillText(String.fromCharCode(0x2206) + "v", PLOT_X_OFFSET + PLOT_WIDTH + 45, PLOT_HEIGHT / 2);
+      return ctx.restore();
+    };
+
+    PorkchopPlot.prototype.drawAxisLabels = function() {
+      var ctx, _n, _o;
+
+      ctx = this.canvasContext;
+      ctx.save();
+      ctx.clearRect(20, 0, PLOT_X_OFFSET - TIC_LENGTH - 21, PLOT_HEIGHT + TIC_LENGTH);
+      ctx.clearRect(PLOT_X_OFFSET - 40, PLOT_HEIGHT + TIC_LENGTH, PLOT_WIDTH + 80, 20);
+      ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif';
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      for (i = _n = 0; 0.25 > 0 ? _n <= 1.0 : _n >= 1.0; i = _n += 0.25) {
+        if (i === 1.0) {
+          ctx.textBaseline = 'top';
+        }
+        ctx.fillText(((this.mission.shortestTimeOfFlight + i * this.mission.yScale) / KerbalTime.secondsPerDay()) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT);
+      }
+      ctx.textAlign = 'center';
+      for (i = _o = 0; 0.25 > 0 ? _o <= 1.0 : _o >= 1.0; i = _o += 0.25) {
+        ctx.fillText(((this.mission.earliestDeparture + i * this.mission.xScale) / KerbalTime.secondsPerDay()) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3);
+      }
       return ctx.restore();
     };
 

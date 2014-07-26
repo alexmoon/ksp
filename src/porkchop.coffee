@@ -103,6 +103,9 @@ $(document).ready ->
     .on 'click', (event, point) ->
       showTransferDetailsForPoint(point)
   
+  $(KerbalTime).on 'dateFormatChanged', (event) ->
+    showTransferDetailsForPoint(porkchopPlot.selectedPoint) if porkchopPlot.selectedPoint?
+  
   $('#refineTransferBtn').click (event) ->
     [x, y] = [porkchopPlot.selectedPoint.x, porkchopPlot.selectedPoint.y]
     mission = porkchopPlot.mission
