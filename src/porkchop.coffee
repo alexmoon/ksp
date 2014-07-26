@@ -86,7 +86,7 @@ showTransferDetailsForPoint = (point) ->
   
   [x, y] = [point.x, point.y]
   t0 = mission.earliestDeparture + x * mission.xResolution
-  dt = mission.shortestTimeOfFlight + mission.yScale - mission.yResolution * (y + 1)
+  dt = mission.shortestTimeOfFlight + y * mission.yResolution
   
   transfer = Orbit.transfer(mission.transferType, mission.originBody, mission.destinationBody, t0, dt, mission.initialOrbitalVelocity, mission.finalOrbitalVelocity)
   showTransferDetails(transfer, t0, dt)
@@ -243,7 +243,7 @@ $(document).ready ->
     [x, y] = [porkchopPlot.selectedPoint.x, porkchopPlot.selectedPoint.y]
     mission = porkchopPlot.mission
     t0 = mission.earliestDeparture + x * mission.xResolution
-    dt = mission.shortestTimeOfFlight + mission.yScale - mission.yResolution * (y + 1)
+    dt = mission.shortestTimeOfFlight + y * mission.yResolution
     
     transfer = Orbit.refineTransfer(selectedTransfer, mission.transferType, mission.originBody, mission.destinationBody, t0, dt, mission.initialOrbitalVelocity, mission.finalOrbitalVelocity)
     showTransferDetails(transfer, t0, dt)

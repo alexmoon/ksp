@@ -66,7 +66,7 @@
           minDeltaV = deltaV;
           minDeltaVPoint = {
             x: x,
-            y: y
+            y: (HEIGHT - 1) - y
           };
         }
         if (deltaV > maxDeltaV) {

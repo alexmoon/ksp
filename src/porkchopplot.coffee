@@ -39,14 +39,13 @@ class PorkchopPlot
           offsetY = event.offsetY ? (event.pageY - @canvas.offset().top) | 0
           x = offsetX - PLOT_X_OFFSET
           y = offsetY
-          pointer = { x: x, y: y } if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT
+          pointer = { x: x, y: ((PLOT_HEIGHT-1) - y) } if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT
           @drawPlot(pointer)
           
       .mouseleave (event) =>
         @drawPlot() unless @dragStart?
       
       .mousedown (event) =>
-        console.log("Mousedown", event)
         @startPanning(event.pageX, event.pageY) if event.which == 1
         
       .on 'touchstart', (event) =>
@@ -99,7 +98,7 @@ class PorkchopPlot
   
   zoomIn: ->
     xCenter = @mission.earliestDeparture + @selectedPoint.x * @mission.xResolution
-    yCenter = @mission.shortestTimeOfFlight + ((PLOT_HEIGHT-1) - @selectedPoint.y) * @mission.yResolution
+    yCenter = @mission.shortestTimeOfFlight + @selectedPoint.y * @mission.yResolution
     @mission.xScale /= Math.sqrt(2)
     @mission.yScale /= Math.sqrt(2)
     @mission.earliestDeparture = Math.max(xCenter - @mission.xScale / 2, 0)
@@ -109,7 +108,7 @@ class PorkchopPlot
   
   zoomOut: ->
     xCenter = @mission.earliestDeparture + @selectedPoint.x * @mission.xResolution
-    yCenter = @mission.shortestTimeOfFlight + ((PLOT_HEIGHT-1) - @selectedPoint.y) * @mission.yResolution
+    yCenter = @mission.shortestTimeOfFlight + @selectedPoint.y * @mission.yResolution
     @mission.xScale *= Math.sqrt(2)
     @mission.yScale *= Math.sqrt(2)
     earliestDeparture = Math.max(xCenter - @mission.xScale / 2, 0)
@@ -258,8 +257,8 @@ class PorkchopPlot
           ctx.moveTo(PLOT_X_OFFSET + x, 0)
           ctx.lineTo(PLOT_X_OFFSET + x, PLOT_HEIGHT)
         if pointer?.y != y
-          ctx.moveTo(PLOT_X_OFFSET, y)
-          ctx.lineTo(PLOT_X_OFFSET + PLOT_WIDTH, y)
+          ctx.moveTo(PLOT_X_OFFSET, (PLOT_HEIGHT-1) - y)
+          ctx.lineTo(PLOT_X_OFFSET + PLOT_WIDTH, (PLOT_HEIGHT-1) - y)
         ctx.strokeStyle = 'rgba(0,0,0,0.5)'
         ctx.stroke()
 
@@ -270,19 +269,19 @@ class PorkchopPlot
         ctx.beginPath()
         ctx.moveTo(PLOT_X_OFFSET + x, 0)
         ctx.lineTo(PLOT_X_OFFSET + x, PLOT_HEIGHT)
-        ctx.moveTo(PLOT_X_OFFSET, y)
-        ctx.lineTo(PLOT_X_OFFSET + PLOT_WIDTH, y)
+        ctx.moveTo(PLOT_X_OFFSET, (PLOT_HEIGHT-1) - y)
+        ctx.lineTo(PLOT_X_OFFSET + PLOT_WIDTH, (PLOT_HEIGHT-1) - y)
         ctx.strokeStyle = 'rgba(255,255,255,0.75)'
         ctx.stroke()
     
-        deltaV = @deltaVs[(y * PLOT_WIDTH + x) | 0]
+        deltaV = @deltaVs[(((PLOT_HEIGHT-1) - y) * PLOT_WIDTH + x) | 0]
         unless isNaN(deltaV)
           tip = " " + String.fromCharCode(0x2206) + "v = " + deltaV.toFixed() + " m/s "
           ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif'
           ctx.fillStyle = 'black'
           ctx.textAlign = if x < PLOT_WIDTH / 2 then 'left' else 'right'
-          ctx.textBaseline = if y > 15 then 'bottom' else 'top'
-          ctx.fillText(tip, x + PLOT_X_OFFSET, y)
+          ctx.textBaseline = if y < PLOT_HEIGHT - 16 then 'bottom' else 'top'
+          ctx.fillText(tip, x + PLOT_X_OFFSET, (PLOT_HEIGHT-1) - y)
     
       ctx.restore()
 
@@ -334,7 +333,7 @@ class PorkchopPlot
       y = offsetY
       
       if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT and !isNaN(@deltaVs[(y * PLOT_WIDTH + x) | 0])
-        @selectedPoint = { x: x, y: y }
+        @selectedPoint = { x: x, y: (PLOT_HEIGHT-1) - y }
         @drawPlot(@selectedPoint if showPointer)
         $(@).trigger('click', @selectedPoint)
 

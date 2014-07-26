@@ -175,7 +175,7 @@
     mission = porkchopPlot.mission;
     _ref = [point.x, point.y], x = _ref[0], y = _ref[1];
     t0 = mission.earliestDeparture + x * mission.xResolution;
-    dt = mission.shortestTimeOfFlight + mission.yScale - mission.yResolution * (y + 1);
+    dt = mission.shortestTimeOfFlight + y * mission.yResolution;
     transfer = Orbit.transfer(mission.transferType, mission.originBody, mission.destinationBody, t0, dt, mission.initialOrbitalVelocity, mission.finalOrbitalVelocity);
     return showTransferDetails(transfer, t0, dt);
   };
@@ -356,7 +356,7 @@
       _ref = [porkchopPlot.selectedPoint.x, porkchopPlot.selectedPoint.y], x = _ref[0], y = _ref[1];
       mission = porkchopPlot.mission;
       t0 = mission.earliestDeparture + x * mission.xResolution;
-      dt = mission.shortestTimeOfFlight + mission.yScale - mission.yResolution * (y + 1);
+      dt = mission.shortestTimeOfFlight + y * mission.yResolution;
       transfer = Orbit.refineTransfer(selectedTransfer, mission.transferType, mission.originBody, mission.destinationBody, t0, dt, mission.initialOrbitalVelocity, mission.finalOrbitalVelocity);
       return showTransferDetails(transfer, t0, dt);
     });

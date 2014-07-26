@@ -61,7 +61,7 @@ HEIGHT = 300
 
       if deltaV < minDeltaV
         minDeltaV = deltaV
-        minDeltaVPoint = { x: x, y: y }
+        minDeltaVPoint = { x: x, y: ((HEIGHT-1) - y) }
       
       maxDeltaV = deltaV if deltaV > maxDeltaV
       unless isNaN(deltaV)

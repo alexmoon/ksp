@@ -70,7 +70,7 @@
           if (x >= 0 && x < PLOT_WIDTH && y < PLOT_HEIGHT) {
             pointer = {
               x: x,
-              y: y
+              y: (PLOT_HEIGHT - 1) - y
             };
           }
           return _this.drawPlot(pointer);
@@ -80,7 +80,6 @@
           return _this.drawPlot();
         }
       }).mousedown(function(event) {
-        console.log("Mousedown", event);
         if (event.which === 1) {
           return _this.startPanning(event.pageX, event.pageY);
         }
@@ -173,7 +172,7 @@
       var xCenter, yCenter;
 
       xCenter = this.mission.earliestDeparture + this.selectedPoint.x * this.mission.xResolution;
-      yCenter = this.mission.shortestTimeOfFlight + ((PLOT_HEIGHT - 1) - this.selectedPoint.y) * this.mission.yResolution;
+      yCenter = this.mission.shortestTimeOfFlight + this.selectedPoint.y * this.mission.yResolution;
       this.mission.xScale /= Math.sqrt(2);
       this.mission.yScale /= Math.sqrt(2);
       this.mission.earliestDeparture = Math.max(xCenter - this.mission.xScale / 2, 0);
@@ -185,7 +184,7 @@
       var earliestDeparture, shortestTimeOfFlight, xCenter, yCenter;
 
       xCenter = this.mission.earliestDeparture + this.selectedPoint.x * this.mission.xResolution;
-      yCenter = this.mission.shortestTimeOfFlight + ((PLOT_HEIGHT - 1) - this.selectedPoint.y) * this.mission.yResolution;
+      yCenter = this.mission.shortestTimeOfFlight + this.selectedPoint.y * this.mission.yResolution;
       this.mission.xScale *= Math.sqrt(2);
       this.mission.yScale *= Math.sqrt(2);
       earliestDeparture = Math.max(xCenter - this.mission.xScale / 2, 0);
@@ -344,8 +343,8 @@
             ctx.lineTo(PLOT_X_OFFSET + x, PLOT_HEIGHT);
           }
           if ((pointer != null ? pointer.y : void 0) !== y) {
-            ctx.moveTo(PLOT_X_OFFSET, y);
-            ctx.lineTo(PLOT_X_OFFSET + PLOT_WIDTH, y);
+            ctx.moveTo(PLOT_X_OFFSET, (PLOT_HEIGHT - 1) - y);
+            ctx.lineTo(PLOT_X_OFFSET + PLOT_WIDTH, (PLOT_HEIGHT - 1) - y);
           }
           ctx.strokeStyle = 'rgba(0,0,0,0.5)';
           ctx.stroke();
@@ -356,18 +355,18 @@
           ctx.beginPath();
           ctx.moveTo(PLOT_X_OFFSET + x, 0);
           ctx.lineTo(PLOT_X_OFFSET + x, PLOT_HEIGHT);
-          ctx.moveTo(PLOT_X_OFFSET, y);
-          ctx.lineTo(PLOT_X_OFFSET + PLOT_WIDTH, y);
+          ctx.moveTo(PLOT_X_OFFSET, (PLOT_HEIGHT - 1) - y);
+          ctx.lineTo(PLOT_X_OFFSET + PLOT_WIDTH, (PLOT_HEIGHT - 1) - y);
           ctx.strokeStyle = 'rgba(255,255,255,0.75)';
           ctx.stroke();
-          deltaV = this.deltaVs[(y * PLOT_WIDTH + x) | 0];
+          deltaV = this.deltaVs[(((PLOT_HEIGHT - 1) - y) * PLOT_WIDTH + x) | 0];
           if (!isNaN(deltaV)) {
             tip = " " + String.fromCharCode(0x2206) + "v = " + deltaV.toFixed() + " m/s ";
             ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif';
             ctx.fillStyle = 'black';
             ctx.textAlign = x < PLOT_WIDTH / 2 ? 'left' : 'right';
-            ctx.textBaseline = y > 15 ? 'bottom' : 'top';
-            ctx.fillText(tip, x + PLOT_X_OFFSET, y);
+            ctx.textBaseline = y < PLOT_HEIGHT - 16 ? 'bottom' : 'top';
+            ctx.fillText(tip, x + PLOT_X_OFFSET, (PLOT_HEIGHT - 1) - y);
           }
         }
         return ctx.restore();
@@ -439,7 +438,7 @@
         if (x >= 0 && x < PLOT_WIDTH && y < PLOT_HEIGHT && !isNaN(this.deltaVs[(y * PLOT_WIDTH + x) | 0])) {
           this.selectedPoint = {
             x: x,
-            y: y
+            y: (PLOT_HEIGHT - 1) - y
           };
           this.drawPlot(showPointer ? this.selectedPoint : void 0);
           $(this).trigger('click', this.selectedPoint);
