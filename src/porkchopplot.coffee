@@ -11,7 +11,7 @@ PALETTE.push([i, 255, 128]) for i in [128..255]
 PALETTE.push([255, i, 128]) for i in [255..128]
 
 class PorkchopPlot
-  constructor: (@container, @secondsPerDay = 24 * 3600) ->
+  constructor: (@container) ->
     @canvas = $('canvas', @container)
     @canvasContext = @canvas[0].getContext('2d')
     @progressContainer = $('.progressContainer')
@@ -88,13 +88,16 @@ class PorkchopPlot
     ctx.textBaseline = 'middle'
     for i in [0..1.0] by 0.25
       ctx.textBaseline = 'top' if i == 1.0
-      ctx.fillText(((@mission.shortestTimeOfFlight + i * @mission.yScale) / @secondsPerDay) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT)
+      ctx.fillText(((@mission.shortestTimeOfFlight + i * @mission.yScale) / KerbalTime.secondsPerDay()) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT)
     ctx.textAlign = 'center'
     for i in [0..1.0] by 0.25
-      ctx.fillText(((@mission.earliestDeparture + i * @mission.xScale) / @secondsPerDay) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3)
+      ctx.fillText(((@mission.earliestDeparture + i * @mission.xScale) / KerbalTime.secondsPerDay()) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3)
     
     @deltaVs = null
     @worker.postMessage(@mission)
+    
+    $('#porkchopContainer button').prop('disabled', true)
+    $(@).trigger('plotStarted')
   
   zoomIn: ->
     xCenter = @mission.earliestDeparture + @selectedPoint.x * @mission.xResolution
@@ -151,6 +154,7 @@ class PorkchopPlot
       @selectedPoint = event.data.minDeltaVPoint
       drawPlot.call(@)
     
+      $('#porkchopContainer button').prop('disabled', false)
       $(@).trigger("plotComplete")
 
   prepareCanvas = ->

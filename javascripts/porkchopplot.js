@@ -35,11 +35,10 @@
   PorkchopPlot = (function() {
     var drawDeltaVScale, drawPlot, panTo, prepareCanvas, startPanning, stopPanning, workerMessage;
 
-    function PorkchopPlot(container, secondsPerDay) {
+    function PorkchopPlot(container) {
       var _this = this;
 
       this.container = container;
-      this.secondsPerDay = secondsPerDay != null ? secondsPerDay : 24 * 3600;
       this.canvas = $('canvas', this.container);
       this.canvasContext = this.canvas[0].getContext('2d');
       this.progressContainer = $('.progressContainer');
@@ -160,14 +159,16 @@
         if (i === 1.0) {
           ctx.textBaseline = 'top';
         }
-        ctx.fillText(((this.mission.shortestTimeOfFlight + i * this.mission.yScale) / this.secondsPerDay) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT);
+        ctx.fillText(((this.mission.shortestTimeOfFlight + i * this.mission.yScale) / KerbalTime.secondsPerDay()) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT);
       }
       ctx.textAlign = 'center';
       for (i = _o = 0; 0.25 > 0 ? _o <= 1.0 : _o >= 1.0; i = _o += 0.25) {
-        ctx.fillText(((this.mission.earliestDeparture + i * this.mission.xScale) / this.secondsPerDay) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3);
+        ctx.fillText(((this.mission.earliestDeparture + i * this.mission.xScale) / KerbalTime.secondsPerDay()) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3);
       }
       this.deltaVs = null;
-      return this.worker.postMessage(this.mission);
+      this.worker.postMessage(this.mission);
+      $('#porkchopContainer button').prop('disabled', true);
+      return $(this).trigger('plotStarted');
     };
 
     PorkchopPlot.prototype.zoomIn = function() {
@@ -232,6 +233,7 @@
         drawDeltaVScale.call(this, logMinDeltaV, logMaxDeltaV);
         this.selectedPoint = event.data.minDeltaVPoint;
         drawPlot.call(this);
+        $('#porkchopContainer button').prop('disabled', false);
         return $(this).trigger("plotComplete");
       }
     };

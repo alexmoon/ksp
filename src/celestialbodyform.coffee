@@ -50,7 +50,7 @@ class CelestialBodyForm
     else
       $('#bodyType a[href="#vesselFields"]', @form).tab('show')
       $('#planetFields input', @form).val('')
-      $('#timeOfPeriapsisPassage', @form).val(shortKerbalDateString(orbit.timeOfPeriapsisPassage))
+      $('#timeOfPeriapsisPassage', @form).val(new KerbalTime(orbit.timeOfPeriapsisPassage).toShortDateString())
     
     $('.modal-header h4', @form).text("Editing #{body.name()}")
     $('#bodyName', @form).val(body.name()).data('originalValue', body.name())
@@ -89,7 +89,7 @@ class CelestialBodyForm
       mass = +$('#planetMass').val()
       radius = +$('#planetRadius').val() * 1000
     else
-      timeOfPeriapsisPassage = dateFromString($('#timeOfPeriapsisPassage').val())
+      timeOfPeriapsisPassage = KerbalTime.parse($('#timeOfPeriapsisPassage').val())
     
     # Create the orbit and celestial body
     orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination,
