@@ -33,6 +33,8 @@
   }
 
   PorkchopPlot = (function() {
+    var drawDeltaVScale, drawPlot, panTo, prepareCanvas, startPanning, stopPanning, workerMessage;
+
     function PorkchopPlot(container, secondsPerDay) {
       var _this = this;
 
@@ -42,7 +44,7 @@
       this.canvasContext = this.canvas[0].getContext('2d');
       this.progressContainer = $('.progressContainer');
       this.plotImageData = this.canvasContext.createImageData(PLOT_WIDTH, PLOT_HEIGHT);
-      this.prepareCanvas();
+      prepareCanvas.call(this);
       this.mission = null;
       this.deltaVs = null;
       this.selectedPoint = null;
@@ -51,7 +53,7 @@
       this.dragged = false;
       this.worker = new Worker("javascripts/porkchopworker.js");
       this.worker.onmessage = function(event) {
-        return _this.workerMessage(event);
+        return workerMessage.call(_this, event);
       };
       $('.zoomInBtn', this.container).click(function(event) {
         return _this.zoomIn();
@@ -73,27 +75,27 @@
               y: (PLOT_HEIGHT - 1) - y
             };
           }
-          return _this.drawPlot(pointer);
+          return drawPlot.call(_this, pointer);
         }
       }).mouseleave(function(event) {
         if (_this.dragStart == null) {
-          return _this.drawPlot();
+          return drawPlot.call(_this);
         }
       }).mousedown(function(event) {
         if (event.which === 1) {
-          return _this.startPanning(event.pageX, event.pageY);
+          return startPanning.call(_this, event.pageX, event.pageY);
         }
       }).on('touchstart', function(event) {
         var touch;
 
         if (event.originalEvent.touches.length === 1) {
           touch = event.originalEvent.touches[0];
-          return _this.startPanning(touch.pageX, touch.pageY, touch.identifier);
+          return startPanning.call(_this, touch.pageX, touch.pageY, touch.identifier);
         }
       });
       $(document).on('mousemove', function(event) {
         if (_this.dragStart != null) {
-          return _this.panTo(event.pageX, event.pageY);
+          return panTo.call(_this, event.pageX, event.pageY);
         }
       }).on('touchmove', function(event) {
         var touch, _len, _n, _ref, _results;
@@ -107,13 +109,13 @@
               continue;
             }
             event.preventDefault();
-            _results.push(_this.panTo(touch.pageX, touch.pageY));
+            _results.push(panTo.call(_this, touch.pageX, touch.pageY));
           }
           return _results;
         }
       }).on('mouseup', function(event) {
         if (event.which === 1 && (_this.dragStart != null)) {
-          return _this.stopPanning(event.pageX, event.pageY, true);
+          return stopPanning.call(_this, event.pageX, event.pageY, true);
         }
       }).on('touchcancel touchend', function(event) {
         var touch, _len, _n, _ref, _results;
@@ -127,7 +129,7 @@
               continue;
             }
             event.preventDefault();
-            _results.push(_this.stopPanning(touch.pageX, touch.pageY, false));
+            _results.push(stopPanning.call(_this, touch.pageX, touch.pageY, false));
           }
           return _results;
         }
@@ -192,7 +194,7 @@
       return this.calculate(this.mission);
     };
 
-    PorkchopPlot.prototype.workerMessage = function(event) {
+    workerMessage = function(event) {
       var color, colorIndex, j, logDeltaV, logMaxDeltaV, logMinDeltaV, mean, relativeDeltaV, stddev, x, y, _n, _o;
 
       if ('log' in event.data) {
@@ -227,14 +229,14 @@
             this.plotImageData.data[j++] = 255;
           }
         }
-        this.drawDeltaVScale(logMinDeltaV, logMaxDeltaV);
+        drawDeltaVScale.call(this, logMinDeltaV, logMaxDeltaV);
         this.selectedPoint = event.data.minDeltaVPoint;
-        this.drawPlot();
+        drawPlot.call(this);
         return $(this).trigger("plotComplete");
       }
     };
 
-    PorkchopPlot.prototype.prepareCanvas = function() {
+    prepareCanvas = function() {
       var ctx, j, paletteKey, x, y, _n, _o, _p, _q;
 
       ctx = this.canvasContext;
@@ -296,7 +298,7 @@
       return ctx.restore();
     };
 
-    PorkchopPlot.prototype.drawDeltaVScale = function(logMinDeltaV, logMaxDeltaV) {
+    drawDeltaVScale = function(logMinDeltaV, logMaxDeltaV) {
       var ctx, deltaV, _n;
 
       ctx = this.canvasContext;
@@ -326,7 +328,7 @@
       return ctx.restore();
     };
 
-    PorkchopPlot.prototype.drawPlot = function(pointer) {
+    drawPlot = function(pointer) {
       var ctx, deltaV, tip, x, y;
 
       if (this.deltaVs != null) {
@@ -373,7 +375,7 @@
       }
     };
 
-    PorkchopPlot.prototype.startPanning = function(pageX, pageY, touchIdentifier) {
+    startPanning = function(pageX, pageY, touchIdentifier) {
       var offsetX, offsetY;
 
       if (touchIdentifier == null) {
@@ -393,7 +395,7 @@
       }
     };
 
-    PorkchopPlot.prototype.panTo = function(pageX, pageY) {
+    panTo = function(pageX, pageY) {
       var ctx, deltaX, deltaY, dirtyHeight, dirtyWidth, dirtyX, dirtyY;
 
       this.dragged = true;
@@ -416,7 +418,7 @@
       return ctx.putImageData(this.plotImageData, PLOT_X_OFFSET + deltaX, deltaY, dirtyX, dirtyY, dirtyWidth, dirtyHeight);
     };
 
-    PorkchopPlot.prototype.stopPanning = function(pageX, pageY, showPointer) {
+    stopPanning = function(pageX, pageY, showPointer) {
       var deltaX, deltaY, offsetX, offsetY, x, y;
 
       this.canvas.removeClass('grabbing');
@@ -428,7 +430,7 @@
           this.mission.shortestTimeOfFlight = Math.max(this.mission.shortestTimeOfFlight + deltaY * this.mission.yResolution, 1);
           this.calculate(this.mission);
         } else {
-          this.drawPlot();
+          drawPlot.call(this);
         }
       } else {
         offsetX = (pageX - this.canvas.offset().left) | 0;
@@ -440,7 +442,7 @@
             x: x,
             y: (PLOT_HEIGHT - 1) - y
           };
-          this.drawPlot(showPointer ? this.selectedPoint : void 0);
+          drawPlot.call(this, showPointer ? this.selectedPoint : void 0);
           $(this).trigger('click', this.selectedPoint);
         }
       }
