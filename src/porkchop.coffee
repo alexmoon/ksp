@@ -8,7 +8,7 @@ daysPerYear = 426
 sign = (x) -> if x < 0 then -1 else 1
 
 numberWithCommas = (n) ->
-  n.toString().replace(/\B(?=(?=\d*\.)(\d{3})+(?!\d))/g, ',')
+  n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 
 secondsPerDay = -> hoursPerDay * 3600
 

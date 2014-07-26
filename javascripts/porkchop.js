@@ -19,7 +19,7 @@
   };
 
   numberWithCommas = function(n) {
-    return n.toString().replace(/\B(?=(?=\d*\.)(\d{3})+(?!\d))/g, ',');
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
   secondsPerDay = function() {
