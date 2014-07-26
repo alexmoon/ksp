@@ -1,43 +1,16 @@
-PLOT_WIDTH = 300
-PLOT_HEIGHT = 300
-PLOT_X_OFFSET = 70
-TIC_LENGTH = 5
-
-transferType = null
-originBody = null
-destinationBody = null
-initialOrbitalVelocity = null
-finalOrbitalVelocity = null
-earliestDeparture = null
-shortestTimeOfFlight = null
-xScale = null
-yScale = null
-deltaVs = null
-
-canvasContext = null
-plotImageData = null
-selectedPoint = null
+porkchopPlot = null
 selectedTransfer = null
 
 # Default to Kerbin time
 hoursPerDay = 6
 daysPerYear = 426
 
-palette = []
-palette.push([64, i, 255]) for i in [64...69]
-palette.push([128, i, 255]) for i in [133..255]
-palette.push([128, 255, i]) for i in [255..128]
-palette.push([i, 255, 128]) for i in [128..255]
-palette.push([255, i, 128]) for i in [255..128]
-
-clamp = (n, min, max) -> Math.max(min, Math.min(n, max))
-
 sign = (x) -> if x < 0 then -1 else 1
 
 isBlank = (str) -> !/\S/.test(str)
 
 numberWithCommas = (n) ->
-  n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+  n.toString().replace(/\B(?=(?=\d*\.)(\d{3})+(?!\d))/g, ',')
 
 secondsPerDay = -> hoursPerDay * 3600
 
@@ -110,218 +83,24 @@ deltaVAbbr = (el, dv, prograde, normal, radial) ->
 angleString = (angle, precision = 0) ->
   (angle * 180 / Math.PI).toFixed(precision) + String.fromCharCode(0x00b0)
 
-worker = new Worker("javascripts/porkchopworker.js")
-
-worker.onmessage = (event) ->
-  if 'log' of event.data
-    console.log(event.data.log...)
-  else if 'progress' of event.data
-    $('#porkchopProgress').show().find('.progress-bar').width((event.data.progress * 100 | 0) + "%")
-  else if 'deltaVs' of event.data
-    $('#porkchopProgress').hide().find('.progress-bar').width("0%")
-    deltaVs = event.data.deltaVs
-    deltaVs = new Float64Array(deltaVs) if deltaVs instanceof ArrayBuffer
-    logMinDeltaV = Math.log(event.data.minDeltaV)
-    mean = event.data.sumLogDeltaV / event.data.deltaVCount
-    stddev = Math.sqrt(event.data.sumSqLogDeltaV / event.data.deltaVCount - mean * mean)
-    logMaxDeltaV = Math.min(Math.log(event.data.maxDeltaV), mean + 2 * stddev)
-    
-    i = 0
-    j = 0
-    for y in [0...PLOT_HEIGHT]
-      for x in [0...PLOT_WIDTH]
-        logDeltaV = Math.log(deltaVs[i++])
-        if isNaN(logDeltaV)
-          color = [255, 255, 255]
-        else
-          relativeDeltaV = if isNaN(logDeltaV) then 1.0 else (logDeltaV - logMinDeltaV) / (logMaxDeltaV - logMinDeltaV)
-          colorIndex = Math.min(relativeDeltaV * palette.length | 0, palette.length - 1)
-          color = palette[colorIndex]
-        plotImageData.data[j++] = color[0]
-        plotImageData.data[j++] = color[1]
-        plotImageData.data[j++] = color[2]
-        plotImageData.data[j++] = 255
-    
-    drawDeltaVScale(logMinDeltaV, logMaxDeltaV)
-    showTransferDetailsForPoint(event.data.minDeltaVPoint)
-    drawPlot()
-    
-    $('#porkchopSubmit,#porkchopContainer button,#refineTransferBtn').prop('disabled', false)
-
-calculatePlot = (erasePlot) ->
-  ctx = canvasContext
-  ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT) if erasePlot
-  ctx.clearRect(PLOT_X_OFFSET + PLOT_WIDTH + 85, 0, 95, PLOT_HEIGHT + 10)
-  ctx.clearRect(20, 0, PLOT_X_OFFSET - TIC_LENGTH - 21, PLOT_HEIGHT + TIC_LENGTH)
-  ctx.clearRect(PLOT_X_OFFSET - 40, PLOT_HEIGHT + TIC_LENGTH, PLOT_WIDTH + 80, 20)
-  
-  ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif'
-  ctx.fillStyle = 'black'
-  ctx.textAlign = 'right'
-  ctx.textBaseline = 'middle'
-  for i in [0..1.0] by 0.25
-    ctx.textBaseline = 'top' if i == 1.0
-    ctx.fillText(((shortestTimeOfFlight + i * yScale) / secondsPerDay()) | 0, PLOT_X_OFFSET - TIC_LENGTH - 3, (1.0 - i) * PLOT_HEIGHT)
-  ctx.textAlign = 'center'
-  for i in [0..1.0] by 0.25
-    ctx.fillText(((earliestDeparture + i * xScale) / secondsPerDay()) | 0, PLOT_X_OFFSET + i * PLOT_WIDTH, PLOT_HEIGHT + TIC_LENGTH + 3)
-    
-  deltaVs = null
-  worker.postMessage(
-    transferType: transferType, originBody: originBody, destinationBody: destinationBody,
-    initialOrbitalVelocity: initialOrbitalVelocity, finalOrbitalVelocity: finalOrbitalVelocity,
-    earliestDeparture: earliestDeparture, xScale: xScale,
-    shortestTimeOfFlight: shortestTimeOfFlight, yScale: yScale)
-  
-drawDeltaVScale = (logMinDeltaV, logMaxDeltaV) ->
-  ctx = canvasContext
-  ctx.save()
-  ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif'
-  ctx.textAlign = 'left'
-  ctx.fillStyle = 'black'
-  ctx.textBaseline = 'alphabetic'
-  for i in [0...1.0] by 0.25
-    deltaV = Math.exp(i * (logMaxDeltaV - logMinDeltaV) + logMinDeltaV)
-    if deltaV.toFixed().length > 6 then deltaV = deltaV.toExponential(3) else deltaV = deltaV.toFixed()
-    ctx.fillText(deltaV + " m/s", PLOT_X_OFFSET + PLOT_WIDTH + 85, (1.0 - i) * PLOT_HEIGHT)
-    ctx.textBaseline = 'middle'
-  ctx.textBaseline = 'top'
-  deltaV = Math.exp(logMaxDeltaV)
-  if deltaV.toFixed().length > 6 then deltaV = deltaV.toExponential(3) else deltaV = deltaV.toFixed()
-  ctx.fillText(deltaV + " m/s", PLOT_X_OFFSET + PLOT_WIDTH + 85, 0)
-  ctx.restore()
-  
-drawPlot = (pointer) ->
-  if deltaVs?
-    ctx = canvasContext
-    ctx.save()
-  
-    ctx.putImageData(plotImageData, PLOT_X_OFFSET, 0)
-  
-    ctx.lineWidth = 1
-  
-    if selectedPoint?
-      x = selectedPoint.x
-      y = selectedPoint.y
-    
-      ctx.beginPath()
-      if pointer?.x != x
-        ctx.moveTo(PLOT_X_OFFSET + x, 0)
-        ctx.lineTo(PLOT_X_OFFSET + x, PLOT_HEIGHT)
-      if pointer?.y != y
-        ctx.moveTo(PLOT_X_OFFSET, y)
-        ctx.lineTo(PLOT_X_OFFSET + PLOT_WIDTH, y)
-      ctx.strokeStyle = 'rgba(0,0,0,0.5)'
-      ctx.stroke()
-
-    if pointer?
-      x = pointer.x
-      y = pointer.y
-    
-      ctx.beginPath()
-      ctx.moveTo(PLOT_X_OFFSET + x, 0)
-      ctx.lineTo(PLOT_X_OFFSET + x, PLOT_HEIGHT)
-      ctx.moveTo(PLOT_X_OFFSET, y)
-      ctx.lineTo(PLOT_X_OFFSET + PLOT_WIDTH, y)
-      ctx.strokeStyle = 'rgba(255,255,255,0.75)'
-      ctx.stroke()
-    
-      deltaV = deltaVs[(y * PLOT_WIDTH + x) | 0]
-      unless isNaN(deltaV)
-        tip = " " + String.fromCharCode(0x2206) + "v = " + deltaV.toFixed() + " m/s "
-        ctx.font = '10pt "Helvetic Neue",Helvetica,Arial,sans serif'
-        ctx.fillStyle = 'black'
-        ctx.textAlign = if x < PLOT_WIDTH / 2 then 'left' else 'right'
-        ctx.textBaseline = if y > 15 then 'bottom' else 'top'
-        ctx.fillText(tip, x + PLOT_X_OFFSET, y)
-    
-    ctx.restore()
-
-prepareCanvas = ->
-  ctx = canvasContext
-  
-  ctx.save()
-  ctx.lineWidth = 2
-  ctx.strokeStyle = 'black'
-  
-  # Draw axes
-  ctx.beginPath()
-  ctx.moveTo(PLOT_X_OFFSET - 1, 0)
-  ctx.lineTo(PLOT_X_OFFSET - 1, PLOT_HEIGHT + 1)
-  ctx.lineTo(PLOT_X_OFFSET + PLOT_WIDTH, PLOT_HEIGHT + 1)
-  ctx.stroke()
-  
-  # Draw tic marks
-  ctx.beginPath()
-  for i in [0..1.0] by 0.25
-    y = PLOT_HEIGHT * i + 1
-    ctx.moveTo(PLOT_X_OFFSET - 1, y)
-    ctx.lineTo(PLOT_X_OFFSET - 1 - TIC_LENGTH, y)
-    
-    x = PLOT_X_OFFSET - 1 + PLOT_WIDTH * i
-    ctx.moveTo(x, PLOT_HEIGHT + 1)
-    ctx.lineTo(x, PLOT_HEIGHT + 1 + TIC_LENGTH)
-  ctx.stroke()
-  
-  # Draw minor tic marks
-  ctx.lineWidth = 0.5
-  ctx.beginPath()
-  for i in [0..1.0] by 0.05
-    continue if i % 0.25 == 0
-    y = PLOT_HEIGHT * i + 1
-    ctx.moveTo(PLOT_X_OFFSET - 1, y)
-    ctx.lineTo(PLOT_X_OFFSET - 1 - TIC_LENGTH, y)
-    
-    x = PLOT_X_OFFSET - 1 + PLOT_WIDTH * i
-    ctx.moveTo(x, PLOT_HEIGHT + 1)
-    ctx.lineTo(x, PLOT_HEIGHT + 1 + TIC_LENGTH)
-  ctx.stroke()
-  
-  # Draw axis titles
-  ctx.font = 'italic 12pt "Helvetic Neue",Helvetica,Arial,sans serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillStyle = 'black'
-  ctx.fillText("Departure Date (days from epoch)", PLOT_X_OFFSET + PLOT_WIDTH / 2, PLOT_HEIGHT + 40)
-  ctx.save()
-  ctx.rotate(-Math.PI / 2)
-  ctx.textBaseline = 'top'
-  ctx.fillText("Time of Flight (days)", -PLOT_HEIGHT / 2, 0)
-  ctx.restore()
-  
-  # Draw palette key
-  paletteKey = ctx.createImageData(20, PLOT_HEIGHT)
-  i = 0
-  for y in [0...PLOT_HEIGHT]
-    j = ((PLOT_HEIGHT - y - 1) * palette.length / PLOT_HEIGHT) | 0
-    for x in [0...20]
-      paletteKey.data[i++] = palette[j][0]
-      paletteKey.data[i++] = palette[j][1]
-      paletteKey.data[i++] = palette[j][2]
-      paletteKey.data[i++] = 255
-  
-  ctx.putImageData(paletteKey, PLOT_X_OFFSET + PLOT_WIDTH + 60, 0)
-  ctx.fillText(String.fromCharCode(0x2206) + "v", PLOT_X_OFFSET + PLOT_WIDTH + 45, PLOT_HEIGHT / 2)
-  
-  ctx.restore()
-
 showTransferDetailsForPoint = (point) ->
-  selectedPoint = point
+  mission = porkchopPlot.mission
   
   [x, y] = [point.x, point.y]
-  t0 = earliestDeparture + x * xScale / PLOT_WIDTH
-  dt = shortestTimeOfFlight + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
+  t0 = mission.earliestDeparture + x * mission.xResolution
+  dt = mission.shortestTimeOfFlight + mission.yScale - mission.yResolution * (y + 1)
   
-  transfer = Orbit.transfer(transferType, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity)
+  transfer = Orbit.transfer(mission.transferType, mission.originBody, mission.destinationBody, t0, dt, mission.initialOrbitalVelocity, mission.finalOrbitalVelocity)
   showTransferDetails(transfer, t0, dt)
   
 showTransferDetails = (transfer, t0, dt) ->
+  mission = porkchopPlot.mission
   t1 = t0 + dt
-  transfer = Orbit.transferDetails(transfer, originBody, t0, initialOrbitalVelocity)
+  transfer = Orbit.transferDetails(transfer, mission.originBody, t0, mission.initialOrbitalVelocity)
   selectedTransfer = transfer
 
-  originOrbit = originBody.orbit
-  destinationOrbit = destinationBody.orbit
+  originOrbit = mission.originBody.orbit
+  destinationOrbit = mission.destinationBody.orbit
   
   $('#departureTime').text(kerbalDateString(t0)).attr(title: "UT: #{t0.toFixed()}s")
   $('#arrivalTime').text(kerbalDateString(t1)).attr(title: "UT: #{t1.toFixed()}s")
@@ -451,151 +230,24 @@ window.prepareOrigins = prepareOrigins = -> # Globalized so bodies can be added 
   originSelect.prop('selectedIndex', 0) unless originSelect.val()?
 
 $(document).ready ->
-  canvasContext = document.getElementById('porkchopCanvas').getContext('2d')
-  plotImageData = canvasContext.createImageData(PLOT_WIDTH, PLOT_HEIGHT)
+  porkchopPlot = new PorkchopPlot($('#porkchopContainer'), secondsPerDay())
+  $(porkchopPlot)
+    .on 'plotComplete', (event) ->
+      showTransferDetailsForPoint(porkchopPlot.selectedPoint)
+      $('#porkchopSubmit,#porkchopContainer button,#refineTransferBtn').prop('disabled', false)
+    .on 'click', (event, point) ->
+      showTransferDetailsForPoint(point)
+      ga('send', 'event', 'porkchop', 'click', "#{point.x},#{point.y}")
   
-  prepareCanvas()
   prepareOrigins()
   
-  porkchopDragStart = null
-  porkchopDragTouchIdentifier = null
-  porkchopDragged = false
-  $('#porkchopCanvas')
-    .mousedown (event) ->
-      if event.which == 1 and deltaVs?
-        offsetX = event.offsetX ? (event.pageX - $('#porkchopCanvas').offset().left) | 0
-        offsetY = event.offsetY ? (event.pageY - $('#porkchopCanvas').offset().top) | 0
-        if offsetX >= PLOT_X_OFFSET and offsetX < (PLOT_X_OFFSET + PLOT_WIDTH) and offsetY < PLOT_HEIGHT
-          $(this).addClass('grabbing')
-          porkchopDragStart = { x: event.pageX, y: event.pageY }
-          
-    .mousemove (event) ->
-      if deltaVs? and !porkchopDragStart?
-        offsetX = event.offsetX ? (event.pageX - $('#porkchopCanvas').offset().left) | 0
-        offsetY = event.offsetY ? (event.pageY - $('#porkchopCanvas').offset().top) | 0
-        x = offsetX - PLOT_X_OFFSET
-        y = offsetY
-        pointer = { x: x, y: y } if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT
-        drawPlot(pointer)
-        
-    .mouseleave (event) ->
-      drawPlot() unless porkchopDragStart?
-    
-    .on 'touchstart', (event) ->
-      if event.originalEvent.touches.length == 1 and deltaVs?
-        touch = event.originalEvent.touches[0]
-        offsetX = (touch.pageX - $('#porkchopCanvas').offset().left) | 0
-        offsetY = (touch.pageY - $('#porkchopCanvas').offset().top) | 0
-        if offsetX >= PLOT_X_OFFSET and offsetX < (PLOT_X_OFFSET + PLOT_WIDTH) and offsetY < PLOT_HEIGHT
-          event.preventDefault()
-          porkchopDragTouchIdentifier = touch.identifier
-          porkchopDragStart = { x: touch.pageX, y: touch.pageY }
-    
-  $(document)
-    .on 'mousemove touchmove', (event) ->
-      if porkchopDragStart?
-        if event.type == 'mousemove'
-          pageX = event.pageX
-          pageY = event.pageY
-        else
-          for touch in event.originalEvent.changedTouches
-            break if touch.identifier == porkchopDragTouchIdentifier
-            
-          return unless (touch.identifier == porkchopDragTouchIdentifier)
-          
-          event.preventDefault()
-          pageX = touch.pageX
-          pageY = touch.pageY
-          
-        porkchopDragged = true
-        ctx = canvasContext
-        ctx.clearRect(PLOT_X_OFFSET, 0, PLOT_WIDTH, PLOT_HEIGHT)
-        
-        deltaX = pageX - porkchopDragStart.x
-        if deltaX > (earliestDeparture * PLOT_WIDTH) / xScale
-          deltaX = (earliestDeparture * PLOT_WIDTH) / xScale
-          porkchopDragStart.x = pageX - deltaX
-        deltaY = pageY - porkchopDragStart.y
-        if deltaY < (1 - shortestTimeOfFlight) * PLOT_HEIGHT / yScale
-          deltaY = (1 - shortestTimeOfFlight) * PLOT_HEIGHT / yScale
-          porkchopDragStart.y = pageY - deltaY
-        dirtyX = Math.max(-deltaX, 0)
-        dirtyY = Math.max(-deltaY, 0)
-        dirtyWidth = PLOT_WIDTH - Math.abs(deltaX)
-        dirtyHeight = PLOT_HEIGHT - Math.abs(deltaY)
-        ctx.putImageData(plotImageData, PLOT_X_OFFSET + deltaX, deltaY, dirtyX, dirtyY, dirtyWidth, dirtyHeight)
-    
-    .on 'mouseup touchcancel touchend', (event) ->
-      if porkchopDragStart?
-        if event.type == 'mouseup'
-          return unless event.which == 1
-          pageX = event.pageX
-          pageY = event.pageY
-        else
-          for touch in event.originalEvent.changedTouches
-            break if touch.identifier == porkchopDragTouchIdentifier
-            
-          return unless (touch.identifier == porkchopDragTouchIdentifier)
-          
-          event.preventDefault()
-          pageX = touch.pageX
-          pageY = touch.pageY
-        
-        $('#porkchopCanvas').removeClass('grabbing')
-        if porkchopDragged
-          if porkchopDragStart.x != pageX or porkchopDragStart.y != pageY
-            # Drag end
-            deltaX = pageX - porkchopDragStart.x
-            deltaY = pageY - porkchopDragStart.y
-            earliestDeparture = Math.max(earliestDeparture - deltaX * xScale / PLOT_WIDTH, 0)
-            shortestTimeOfFlight = Math.max(shortestTimeOfFlight + deltaY * yScale / PLOT_HEIGHT, 1)
-            calculatePlot()
-          else
-            drawPlot()
-        else
-          # Click, select new transfer
-          offsetX = (pageX - $('#porkchopCanvas').offset().left) | 0
-          offsetY = (pageY - $('#porkchopCanvas').offset().top) | 0
-          x = offsetX - PLOT_X_OFFSET
-          y = offsetY
-          if x >= 0 and x < PLOT_WIDTH and y < PLOT_HEIGHT and !isNaN(deltaVs[(y * PLOT_WIDTH + x) | 0])
-            showTransferDetailsForPoint(x: x, y: y)
-            if event.type == 'mouseup'
-              drawPlot(x: x, y: y)
-            else
-              drawPlot()
-            ga('send', 'event', 'porkchop', 'click', "#{x},#{y}")
-    
-        porkchopDragStart = null
-        porkchopDragTouchIdentifier = null
-        porkchopDragged = false
-  
-  $('#porkchopZoomIn').click (event) ->
-    xCenter = earliestDeparture + selectedPoint.x * xScale / PLOT_WIDTH
-    yCenter = shortestTimeOfFlight + ((PLOT_HEIGHT-1) - selectedPoint.y) * yScale / PLOT_HEIGHT
-    xScale /= Math.sqrt(2)
-    yScale /= Math.sqrt(2)
-    earliestDeparture = Math.max(xCenter - xScale / 2, 0)
-    shortestTimeOfFlight = Math.max(yCenter - yScale / 2, 1)
-    
-    calculatePlot()
-  
-  $('#porkchopZoomOut').click (event) ->
-    xCenter = earliestDeparture + selectedPoint.x * xScale / PLOT_WIDTH
-    yCenter = shortestTimeOfFlight + ((PLOT_HEIGHT-1) - selectedPoint.y) * yScale / PLOT_HEIGHT
-    xScale *= Math.sqrt(2)
-    yScale *= Math.sqrt(2)
-    earliestDeparture = Math.max(xCenter - xScale / 2, 0)
-    shortestTimeOfFlight = Math.max(yCenter - yScale / 2, 1)
-    
-    calculatePlot()
-  
   $('#refineTransferBtn').click (event) ->
-    [x, y] = [selectedPoint.x, selectedPoint.y]
-    t0 = earliestDeparture + x * xScale / PLOT_WIDTH
-    dt = shortestTimeOfFlight + ((PLOT_HEIGHT-1) - y) * yScale / PLOT_HEIGHT
+    [x, y] = [porkchopPlot.selectedPoint.x, porkchopPlot.selectedPoint.y]
+    mission = porkchopPlot.mission
+    t0 = mission.earliestDeparture + x * mission.xResolution
+    dt = mission.shortestTimeOfFlight + mission.yScale - mission.yResolution * (y + 1)
     
-    transfer = Orbit.refineTransfer(selectedTransfer, transferType, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity)
+    transfer = Orbit.refineTransfer(selectedTransfer, mission.transferType, mission.originBody, mission.destinationBody, t0, dt, mission.initialOrbitalVelocity, mission.finalOrbitalVelocity)
     showTransferDetails(transfer, t0, dt)
   
   $('.altitude').tooltip(container: 'body')
@@ -630,11 +282,13 @@ $(document).ready ->
   $('#earthTime').click ->
     hoursPerDay = 24
     daysPerYear = 365
+    porkchopPlot.secondsPerDay = secondsPerDay()
     updateAdvancedControls()
   
   $('#kerbinTime').click ->
     hoursPerDay = 6
     daysPerYear = 426
+    porkchopPlot.secondsPerDay = secondsPerDay()
     updateAdvancedControls()
     
   $('#originSelect').change (event) ->
@@ -744,7 +398,19 @@ $(document).ready ->
     shortestTimeOfFlight = durationSeconds(0, +$('#shortestTimeOfFlight').val())
     yScale = durationSeconds(0, +$('#longestTimeOfFlight').val()) - shortestTimeOfFlight
     
-    calculatePlot(true)
+    mission = {
+      transferType: transferType
+      originBody: originBody
+      destinationBody: destinationBody
+      initialOrbitalVelocity: initialOrbitalVelocity
+      finalOrbitalVelocity: finalOrbitalVelocity
+      earliestDeparture: earliestDeparture
+      shortestTimeOfFlight: shortestTimeOfFlight
+      xScale: xScale
+      yScale: yScale
+    }
+    
+    porkchopPlot.calculate(mission, true)
 
     description = "#{originBodyName} @#{+initialOrbit}km to #{destinationBodyName}"
     description += " @#{+finalOrbit}km" if finalOrbit
