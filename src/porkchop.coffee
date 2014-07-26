@@ -92,8 +92,46 @@ showTransferDetails = (transfer, t0, dt) ->
 
   $('#transferDetails:hidden').fadeIn()
 
+ejectionDeltaVInfoContent = ->
+  list = $("<dl>")
+  $("<dt>").text("Prograde \u0394v").appendTo(list)
+  $("<dd>").text(numberWithCommas(selectedTransfer.ejectionProgradeDeltaV.toFixed(1)) + " m/s").appendTo(list)
+  $("<dt>").text("Normal \u0394v").appendTo(list)
+  $("<dd>").text(numberWithCommas(selectedTransfer.ejectionNormalDeltaV.toFixed(1)) + " m/s").appendTo(list)
+  
+  if selectedTransfer.ejectionRadialDeltaV?
+    $("<dt>").text("Radial \u0394v").appendTo(list)
+    $("<dd>").text(numberWithCommas(selectedTransfer.ejectionRadialDeltaV.toFixed(1)) + " m/s").appendTo(list)
+    
+  
+  $("<dd>").html("&nbsp;").appendTo(list) # Spacer
+  
+  if selectedTransfer.ejectionPitch?
+    $("<dt>").text("Pitch").appendTo(list)
+    $("<dd>").text(angleString(selectedTransfer.ejectionPitch, 2)).appendTo(list)
+    
+  $("<dt>").text("Heading").appendTo(list)
+  $("<dd>").text(angleString(selectedTransfer.ejectionHeading, 2)).appendTo(list)
+  
+  list
+  
 $(document).ready ->
+  celestialBodyForm = new CelestialBodyForm($('#bodyForm'))
+  missionForm = new MissionForm($('#porkchopForm'), celestialBodyForm)
   porkchopPlot = new PorkchopPlot($('#porkchopContainer'))
+  
+  $(KerbalTime).on 'dateFormatChanged', (event) ->
+    showTransferDetailsForPoint(porkchopPlot.selectedPoint) if porkchopPlot.selectedPoint?
+  
+  $(missionForm)
+    .on 'submit', (event) ->
+      $('#porkchopSubmit,#refineTransferBtn').prop('disabled', true)
+      
+      scrollTop = $('#porkchopCanvas').offset().top + $('#porkchopCanvas').height() - $(window).height()
+      $("html,body").animate(scrollTop: scrollTop, 500) if $(document).scrollTop() < scrollTop
+      
+      porkchopPlot.calculate(missionForm.mission(), true)
+      
   $(porkchopPlot)
     .on 'plotStarted', (event) ->
       $('#porkchopSubmit').prop('disabled', true)
@@ -103,8 +141,9 @@ $(document).ready ->
     .on 'click', (event, point) ->
       showTransferDetailsForPoint(point)
   
-  $(KerbalTime).on 'dateFormatChanged', (event) ->
-    showTransferDetailsForPoint(porkchopPlot.selectedPoint) if porkchopPlot.selectedPoint?
+  $('#ejectionDeltaVInfo').popover(html: true, content: ejectionDeltaVInfoContent)
+    .click((event) -> event.preventDefault()).on 'show.bs.popover', ->
+      $(this).next().find('.popover-content').html(ejectionDeltaVInfoContent())
   
   $('#refineTransferBtn').click (event) ->
     [x, y] = [porkchopPlot.selectedPoint.x, porkchopPlot.selectedPoint.y]
@@ -114,41 +153,3 @@ $(document).ready ->
     
     transfer = Orbit.refineTransfer(selectedTransfer, mission.transferType, mission.originBody, mission.destinationBody, t0, dt, mission.initialOrbitalVelocity, mission.finalOrbitalVelocity)
     showTransferDetails(transfer, t0, dt)
-  
-  ejectionDeltaVInfoContent = ->
-    list = $("<dl>")
-    $("<dt>").text("Prograde \u0394v").appendTo(list)
-    $("<dd>").text(numberWithCommas(selectedTransfer.ejectionProgradeDeltaV.toFixed(1)) + " m/s").appendTo(list)
-    $("<dt>").text("Normal \u0394v").appendTo(list)
-    $("<dd>").text(numberWithCommas(selectedTransfer.ejectionNormalDeltaV.toFixed(1)) + " m/s").appendTo(list)
-    
-    if selectedTransfer.ejectionRadialDeltaV?
-      $("<dt>").text("Radial \u0394v").appendTo(list)
-      $("<dd>").text(numberWithCommas(selectedTransfer.ejectionRadialDeltaV.toFixed(1)) + " m/s").appendTo(list)
-      
-    
-    $("<dd>").html("&nbsp;").appendTo(list) # Spacer
-    
-    if selectedTransfer.ejectionPitch?
-      $("<dt>").text("Pitch").appendTo(list)
-      $("<dd>").text(angleString(selectedTransfer.ejectionPitch, 2)).appendTo(list)
-      
-    $("<dt>").text("Heading").appendTo(list)
-    $("<dd>").text(angleString(selectedTransfer.ejectionHeading, 2)).appendTo(list)
-    
-    list
-    
-  $('#ejectionDeltaVInfo').popover(html: true, content: ejectionDeltaVInfoContent)
-    .click((event) -> event.preventDefault()).on 'show.bs.popover', ->
-      $(this).next().find('.popover-content').html(ejectionDeltaVInfoContent())
-  
-  celestialBodyForm = new CelestialBodyForm($('#bodyForm'))
-  missionForm = new MissionForm($('#porkchopForm'), celestialBodyForm)
-  $(missionForm)
-    .on 'submit', (event) ->
-      $('#porkchopSubmit,#refineTransferBtn').prop('disabled', true)
-      
-      scrollTop = $('#porkchopCanvas').offset().top + $('#porkchopCanvas').height() - $(window).height()
-      $("html,body").animate(scrollTop: scrollTop, 500) if $(document).scrollTop() < scrollTop
-      
-      porkchopPlot.calculate(missionForm.mission(), true)
