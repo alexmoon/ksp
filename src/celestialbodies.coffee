@@ -27,7 +27,7 @@ CelestialBody.fromJSON = (json) ->
   new CelestialBody(json.mass, json.radius, json.siderealRotation, orbit, json.atmPressure)
   
 CelestialBody.Kerbol = Kerbol = new CelestialBody(1.756567e+28, 2.616e+08, 432000, null)
-CelestialBody.Moho = Moho = new CelestialBody(3.6747079e21, 250000, 1210000, new Orbit(Kerbol, 5263138304, 0.2, 7.0, 70.0, 15.0, 3.14))
+CelestialBody.Moho = Moho = new CelestialBody(2.5263617e21, 250000, 1210000, new Orbit(Kerbol, 5263138304, 0.2, 7.0, 70.0, 15.0, 3.14))
 CelestialBody.Eve = Eve = new CelestialBody(1.2244127e23, 700000, 80500, new Orbit(Kerbol, 9832684544, 0.01, 2.1, 15.0, 0, 3.14), 5, 7000)
 CelestialBody.Gilly = Gilly = new CelestialBody(1.2420512e17, 13000, 28255, new Orbit(Eve, 31500000, 0.55, 12.0, 80.0, 10.0, 0.9))
 CelestialBody.Kerbin = Kerbin = new CelestialBody(5.2915793e22, 600000, 21600, new Orbit(Kerbol, 13599840256, 0.0, 0, 0, 0, 3.14), 1, 5000)
