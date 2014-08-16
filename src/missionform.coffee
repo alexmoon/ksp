@@ -76,7 +76,7 @@ class MissionForm
   
     $('#showAdvancedControls').click (event) => @showAdvancedControls(!@advancedControlsVisible())
   
-    $('#earliestDepartureYear,#earliestDepartureDay').change (event) -> adjustLatestDeparture()
+    $('#earliestDepartureYear,#earliestDepartureDay').change (event) => @adjustLatestDeparture()
     $('#shortestTimeOfFlight,#longestTimeOfFlight').change (event) ->
       setTimeOfFlight(+$('#shortestTimeOfFlight').val(), +$('#longestTimeOfFlight').val(), event.target.id == 'shortestTimeOfFlight')
     

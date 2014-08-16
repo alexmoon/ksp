@@ -116,7 +116,7 @@
         return _this.showAdvancedControls(!_this.advancedControlsVisible());
       });
       $('#earliestDepartureYear,#earliestDepartureDay').change(function(event) {
-        return adjustLatestDeparture();
+        return _this.adjustLatestDeparture();
       });
       $('#shortestTimeOfFlight,#longestTimeOfFlight').change(function(event) {
         return setTimeOfFlight(+$('#shortestTimeOfFlight').val(), +$('#longestTimeOfFlight').val(), event.target.id === 'shortestTimeOfFlight');
