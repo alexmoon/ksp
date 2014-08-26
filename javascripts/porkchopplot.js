@@ -94,7 +94,9 @@
 
         if (event.originalEvent.touches.length === 1) {
           touch = event.originalEvent.touches[0];
-          return startPanning.call(_this, touch.pageX, touch.pageY, touch.identifier);
+          if (startPanning.call(_this, touch.pageX, touch.pageY, touch.identifier)) {
+            return event.preventDefault();
+          }
         }
       });
       $(document).on('mousemove', function(event) {
@@ -402,7 +404,6 @@
         offsetX = (pageX - this.canvas.offset().left) | 0;
         offsetY = (pageY - this.canvas.offset().top) | 0;
         if (offsetX >= PLOT_X_OFFSET && offsetX < (PLOT_X_OFFSET + PLOT_WIDTH) && offsetY < PLOT_HEIGHT) {
-          event.preventDefault();
           this.dragTouchIdentifier = touchIdentifier;
           return this.dragStart = {
             x: pageX,

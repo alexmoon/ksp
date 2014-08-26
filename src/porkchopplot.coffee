@@ -53,7 +53,8 @@ class PorkchopPlot
       .on 'touchstart', (event) =>
         if event.originalEvent.touches.length == 1
           touch = event.originalEvent.touches[0]
-          startPanning.call(@, touch.pageX, touch.pageY, touch.identifier)
+          if startPanning.call(@, touch.pageX, touch.pageY, touch.identifier)
+            event.preventDefault()
 
     $(document)
       .on 'mousemove', (event) =>
@@ -306,7 +307,6 @@ class PorkchopPlot
       offsetX = (pageX - @canvas.offset().left) | 0
       offsetY = (pageY - @canvas.offset().top) | 0
       if offsetX >= PLOT_X_OFFSET and offsetX < (PLOT_X_OFFSET + PLOT_WIDTH) and offsetY < PLOT_HEIGHT
-        event.preventDefault()
         @dragTouchIdentifier = touchIdentifier
         @dragStart = { x: pageX, y: pageY }
 
