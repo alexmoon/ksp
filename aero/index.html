@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+	<title>KSP Aerobraking Calculator</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="description" content="Aerobraking Calculator for Kerbal Space Program (KSP) Calculates the optimal aerobraking altitude for a desired orbit.">
+	<meta name="author" content="Alterbaron">
+	<!-- Bootstrap	-->
+	<link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+	<link href="css/main.css" rel="stylesheet" media="screen">
+	<!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+	<!--[if	lt IE 9]>
+		<script	src="../assets/js/html5shiv.js"></script>
+	<![endif]-->
+	</head>
+	<body>
+	<div id="wrap">
+	<div class="container">
+		<div class="row">
+		<div class="span12">
+		<h1 class="text-center">KSP Aerobraking Calculator</h1>
+		<div class="row">
+			<div class="span8">
+			<p class="lead">Enter your <strong>current altitude</strong>, <strong>orbital velocity</strong>, and <strong>periapsis distance</strong> into the calculator at right. Then, enter the <strong>apoapsis distance</strong> you want after aerobraking. The calculator will find a manoeuver to get you there.</p>
+			<h2>How to Use the Solution</h2>
+			<p>
+			The solution found by the calculator is in the form of an orbital manoeuver. Point your craft at the angle given by the calculator and thrust until the orbit periapsis matches that given by the solution. Your orbital velocity should not significantly change.
+			</p>
+			<p>
+			<strong>Note on the angles:</strong> Angles are measured from the top of the navball. The direction in which to thrust will always be directly between the prograde and retrograde markers (i.e. perpendicular to your direction of travel.)
+			</p>
+			<h2>Suggestions for Best Results</h2>
+			<p>
+			Before running the calculator, adjust your orbit so that the periapsis is <strong>slightly above</strong> the atmosphere of the target body. In some cases, if your periapsis is too deep within the planet's atmosphere, the calculator has trouble finding a solution.
+			</p>
+			<p>
+			The calculator will probably not work for ships with lift surfaces, because the lift force depends on the craft's orientation in the atmosphere. Lift forces are not considered.
+			</p>
+			<p>
+			Sometimes, when coming out of timewarp, the periapsis will jump around a bit, potentially messing up the aerobraking manoeuver. If this happens, just re-run the calculator with the new orbit data to determine the required course correction.
+			</p>
+			<h2>How it Works</h2>
+			<p>
+			This calculator searches for constant-velocity manoeuvers that, after aerobraking, result in an orbit with the desired apoapsis. This is done by fixing the current altitude and velocity, and varying the periapsis of the orbit. The periapsis resulting in the desired orbit is then calculated.
+			</p>
+			<p>
+			Given a current altitude, orbital velocity, and periapsis, we have enough information to resolve the orbit of the ship (there are some ambiguities in orientation, but they do not matter for this problem). The point of intersection of this orbit with the atmosphere and the velocity of the ship at that point are calculated. Using these data, the trajectory in the atmosphere is determined using numerical methods. The velocity at which the ship escapes the atmosphere is found, and used to compute the new orbit.
+			</p>
+			<h2>Q&amp;A</h2>
+			<dl>
+			<dt>Why isn't the mass of the ship needed?</dt>
+			<dd>This is an artifact of the (unrealistic) drag model in KSP at the moment. Both the gravitational and drag forces are proportional to mass. As a result, the acceleration (and therefore the path of the ship, neglecting lift, in the atmosphere) is <strong>independent</strong> of mass. <em>Note: In the real world, aerodynamic drag is not proportional to mass.</em></dd>
+			<dt>When can I use 0.2 as the drag coefficient?</dt>
+			<dd>For most ships, the drag coefficient is very close to 0.2. This is because most parts in the game have a drag coefficient of 0.2. Those that do not (for instance, docking ports), tend to have a small mass and therefore do not significantly alter the drag coefficient. However, if using modded parts (or if your ship's mass is largely made up of docking ports), you'll want to calculate the drag coefficient for your ship. This can be done following the methods <a href="http://wiki.kerbalspaceprogram.com/wiki/Atmosphere">here.</a></dd>
+			</dl>
+			</div>
+			<div class="span2">
+				<form class="form-horizontal">
+					<fieldset class="calc">
+						<legend>Current Orbit Details</legend>
+						<p class="text-info">Supported units: <strong>m</strong>, <strong>km</strong> or <strong>Mm</strong></p>
+						<div class="control-group">
+							<label class="control-label" for="inputBody">Body</label>
+							<div class="controls">
+								<select id="inputBody">
+									<option value="Kerbin">Kerbin</option>
+									<option value="Eve">Eve</option>
+									<option value="Duna">Duna</option>
+									<option value="Jool">Jool</option>
+									<option value="Laythe">Laythe</option>
+								</select>
+							</div>
+						</div>
+						<div class="control-group">
+							<label class="control-label" for="inputAlt">Altitude</label>
+							<div class="controls">
+								<input type="text" id="inputAlt" value="10000 km">
+							</div>
+						</div>
+						<div class="control-group">
+							<label class="control-label" for="inputVel">Orbital Velocity (m/s)</label>
+							<div class="controls">
+								<input type="text" id="inputVel" value="200">
+							</div>
+						</div>
+						<div class="control-group">
+							<label class="control-label" for="inputPE">Periapsis</label>
+							<div class="controls">
+								<input type="text" id="inputPE" value="60 km">
+							</div>
+						</div>
+						<p class="text-info">Select the direction of your orbit for more accurate results.</p>
+						<div class="control-group">
+							<label class="control-label" for="inputPE">Orbit Direction</label>
+							<div class="controls">
+								<label class="radio">
+									<input type="radio" name="inputDir" id="inputDir1" value="prograde" checked>
+									Prograde (CCW)
+								</label>
+								<label class="radio">
+									<input type="radio" name="inputDir" id="inputDir2" value="retrograde">
+									Retrograde (CW)
+								</label>
+								<label class="radio">
+									<input type="radio" name="inputDir" id="inputDir2" value="ignore">
+									Ignore (Less Accurate)
+								</label>
+							</div>
+						</div>
+					<legend>Target Orbit Details</legend>
+					<div class="control-group">
+							<label class="control-label" for="inputAP">Desired Apoapsis</label>
+							<div class="controls">
+								<input type="text" id="inputAP" value="1000 km">
+							</div>
+					</div>
+					<legend>Ship Details (Advanced)</legend>
+					<div class="control-group">
+							<label class="control-label" for="inputD">Drag Coefficient</label>
+							<div class="controls">
+								<input type="text" id="inputD" value="0.2">
+								
+							</div>
+							<span class="help-block">For almost any ship, this will be approx. 0.2.</span>
+					</div>
+					<div class="form-actions">
+					<button class="btn btn-primary" id="go" type="button">Calculate!</button>
+					<button class="btn">Reset</button>
+					</div>
+					<legend>Results</legend>
+					<div class="control-group">
+							<label class="control-label" for="outputPE">Aerobraking Periapsis (m)</label>
+							<div class="controls">
+								<input type="text" id="outputPE" class="uneditable-input" disabled>
+							</div>
+					</div>
+					<div class="control-group">
+							<label class="control-label" for="outputDV">Required delta-V (m/s)</label>
+							<div class="controls">
+								<input type="text" id="outputDV" class="uneditable-input" disabled>
+							</div>
+					</div>
+					<div class="control-group">
+							<label class="control-label" for="outputAng">Thrust Angle (degrees)</label>
+							<div class="controls">
+								<input type="text" id="outputAng" class="uneditable-input" disabled>
+							</div>
+					</div>
+					<div class="control-group">
+							<label class="control-label" for="outputVel2">Orbital Velocity after Manoeuver (m/s)</label>
+							<div class="controls">
+								<input type="text" id="outputVel2" class="uneditable-input" disabled>
+							</div>
+					</div>
+					<p class="text-info">New feature! Delta-V required to circularize target orbit.</p>
+					<div class="control-group">
+							<label class="control-label" for="outputCircDV">Post-Aerobrake Circularization delta-V (m/s)</label>
+							<div class="controls">
+								<input type="text" id="outputCircDV" class="uneditable-input" disabled>
+							</div>
+					</div>
+					</fieldset>
+				</form>
+			</div>
+		</div>
+		</div>
+		</div>
+	</div>
+	<div id="push">
+	</div>
+	</div>
+	<div id="footer">
+		<div class="container">
+			<p class="muted">If you have comments or feedback, feel free to message me on reddit (<a href="http://reddit.com/u/alterb">/u/alterB</a>) or on the <a href="http://forum.kerbalspaceprogram.com">KSP forums</a> (username alterbaron).<br />
+<a href="https://github.com/alterbaron/ksp_aerocalc">Contribute to the project on github!</a><br /><a href="https://github.com/alterbaron/ksp_aerocalc/blob/master/AUTHORS">Authors</a></p>
+		</div>
+	</div>
+	<script src="https://code.jquery.com/jquery.js"></script>
+	<script src="js/bootstrap.min.js"></script>
+	<script src="js/aerocalc.js"></script>
+	<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-39191083-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+	</body>
+</html>
