@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+	<title>KSP 空气刹车计算器</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="description" content="Kerbal Space Program (KSP) 的空气刹车计算器：计算空气刹车的高度">
+	<meta name="author" content="Alterbaron">
+	<!-- Bootstrap	-->
+	<link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+	<link href="css/main.css" rel="stylesheet" media="screen">
+	<!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+	<!--[if	lt IE 9]>
+		<script	src="../assets/js/html5shiv.js"></script>
+	<![endif]-->
+	</head>
+	<body>
+	<div id="wrap">
+	<div class="container">
+		<div class="row">
+		<div class="span12">
+		<h1 class="text-center">KSP 空气刹车计算器</h1>
+		<div class="row">
+			<div class="span8">
+			<p class="lead">在右侧输入 <strong>当前高度（Altitude）</strong>, <strong>轨道速度（Orbital Vecolity）</strong>, 和 <strong>近心点距离（PE）</strong> 。 然后输入空气刹车之后想要达到的 <strong>远心点距离（AP）</strong> 。 </p>
+			<h2>如何使用输出结果</h2>
+			<p>
+			输出结果是所需要做的机动。将飞船指向计算结果中的角度，直到近心点（PE）达到了计算结果给出的近心点（PE）结果。
+			</p>
+			<p>
+
+
+			</p>
+			<h2>建议</h2>
+			<p>
+			在使用计算器之前，把轨道调整到近心点（PE）在大气层上方一点点。如果近心点（PE）在大气层里面很低的地方，计算器可能很难找到解。
+			</p>
+			<p>
+			如果飞船上有一些结构可以产生升力效应的部件，计算器可能会不起作用。因为升力效应跟飞船在大气中的姿态有关，所以这个计算器没有考虑升力效应。
+			</p>
+			<p>
+			有时候从 timewarp 里面回来的时候，近心点（PE）可能会产生变化，这样就可能导致空气刹车之前的结构不太准确了。如果发生了这样的事情，可以重新使用新的轨道再计算一次空气刹车的参数，然后对轨道进行修正。
+			</p>
+			<h2>计算器的原理</h2>
+			<p>
+			通过寻找当前高度和速度下做小的机动可以产生的轨道，假定以这个轨道进入大气层，然后可以使用数值计算的方法计算在大气层中的轨道，然后决定从大气层出来的时候的轨道和速度，利用这个结果来计算经过大气刹车之后的轨道。
+			</p>
+			<h2>Q&amp;A</h2>
+			<dl>
+			<dt>为什么计算器不需要考虑飞船的质量？</dt>
+			<dd>
+			KSP 中的大气阻力模型是正比于质量的。所以产生的加速度也就是跟质量无关的（倘若不考虑升力效应的话）。
+
+			<span style="text-decoration:underline;">现实生活中这是不对的。</span></dd>
+			<dt>阻力系数默认的 0.2 什么时候不用改动？</dt>
+			<dd>对于大多数飞船来说，阻力系数很接近 0.2 ，因为游戏中几乎所有的部件的阻力系数都设定为 0.2 了。而游戏中的那些不是 0.2 的部件，例如对接口，一般质量很小，基本不会影响整个飞船的阻力系数（前面说过了游戏中空气阻力正比于质量）。但是如果用了一些其他的 MOD，其中的部件可能与原装部件的 0.2 不同。如果需要计算的话，可以参考<a href="http://wiki.kerbalspaceprogram.com/wiki/Atmosphere">这里</a>。</dd>
+			</dl>
+			</div>
+
+
+
+
+
+			<div class="span2">
+				<form class="form-horizontal">
+					<fieldset class="calc">
+						<legend>当前轨道</legend>
+						<p class="text-info">支持使用的单位: <strong>m</strong>, <strong>km</strong> 或者 <strong>Mm</strong></p>
+						<div class="control-group">
+							<label class="control-label" for="inputBody">天体</label>
+							<div class="controls">
+								<select id="inputBody">
+									<option value="Kerbin">Kerbin</option>
+									<option value="Eve">Eve</option>
+									<option value="Duna">Duna</option>
+									<option value="Jool">Jool</option>
+									<option value="Laythe">Laythe</option>
+								</select>
+							</div>
+						</div>
+						<div class="control-group">
+							<label class="control-label" for="inputAlt">高度</label>
+							<div class="controls">
+								<input type="text" id="inputAlt" value="10000 km">
+							</div>
+						</div>
+						<div class="control-group">
+							<label class="control-label" for="inputVel">轨道速度 (m/s)</label>
+							<div class="controls">
+								<input type="text" id="inputVel" value="200">
+							</div>
+						</div>
+						<div class="control-group">
+							<label class="control-label" for="inputPE">近心点（Pe）</label>
+							<div class="controls">
+								<input type="text" id="inputPE" value="60 km">
+							</div>
+						</div>
+						<p class="text-info">选择轨道的方向，使用正确的轨道方向可以获得更精确的结果。</p>
+						<div class="control-group">
+							<label class="control-label" for="inputPE">轨道方向</label>
+							<div class="controls">
+								<label class="radio">
+									<input type="radio" name="inputDir" id="inputDir1" value="prograde" checked>
+									与自转同向 | Prograde (CCW)
+								</label>
+								<label class="radio">
+									<input type="radio" name="inputDir" id="inputDir2" value="retrograde">
+									与自转反向 | Retrograde (CW)
+								</label>
+								<label class="radio">
+									<input type="radio" name="inputDir" id="inputDir2" value="ignore">
+									忽略（导致结果不精确）
+								</label>
+							</div>
+						</div>
+					<legend>目标</legend>
+					<div class="control-group">
+							<label class="control-label" for="inputAP">想要达到的远心点（Ap）</label>
+							<div class="controls">
+								<input type="text" id="inputAP" value="1000 km">
+							</div>
+					</div>
+					<legend>飞船信息（请阅读左侧的解释）</legend>
+					<div class="control-group">
+							<label class="control-label" for="inputD">阻力系数</label>
+							<div class="controls">
+								<input type="text" id="inputD" value="0.2">
+								
+							</div>
+							<span class="help-block">大多数飞船都是近似 0.2 </span>
+					</div>
+					<div class="form-actions">
+					<button class="btn btn-primary" id="go" type="button">计算</button>
+					<button class="btn">重置</button>
+					</div>
+					<legend>结果</legend>
+					<div class="control-group">
+							<label class="control-label" for="outputPE">刹车的近心点（Pe） (m)</label>
+							<div class="controls">
+								<input type="text" id="outputPE" class="uneditable-input" disabled style="cursor: text;">
+							</div>
+					</div>
+					<div class="control-group">
+							<label class="control-label" for="outputDV">所需 delta-V (m/s)</label>
+							<div class="controls">
+								<input type="text" id="outputDV" class="uneditable-input" disabled style="cursor: text;">
+							</div>
+					</div>
+					<div class="control-group">
+							<label class="control-label" for="outputAng">推进角度 (degrees)</label>
+							<div class="controls">
+								<input type="text" id="outputAng" class="uneditable-input" disabled style="cursor: text;">
+							</div>
+					</div>
+					<div class="control-group">
+							<label class="control-label" for="outputVel2">机动后的轨道速度 (m/s)</label>
+							<div class="controls">
+								<input type="text" id="outputVel2" class="uneditable-input" disabled style="cursor: text;">
+							</div>
+					</div>
+					<p class="text-info">完成刹车之后达到圆形轨道所需的 delta-V</p>
+					<div class="control-group">
+							<label class="control-label" for="outputCircDV">圆形轨道所需 delta-V (m/s)</label>
+							<div class="controls">
+								<input type="text" id="outputCircDV" class="uneditable-input" disabled style="cursor: text;">
+							</div>
+					</div>
+					</fieldset>
+				</form>
+			</div>
+		</div>
+		</div>
+		</div>
+	</div>
+	<div id="push">
+	</div>
+	</div>
+	<div id="footer">
+		<div class="container">
+			<p class="muted">If you have comments or feedback, feel free to message me on reddit (<a href="http://reddit.com/u/alterb">/u/alterB</a>) or on the <a href="http://forum.kerbalspaceprogram.com">KSP forums</a> (username alterbaron).<br />
+<a href="https://github.com/alterbaron/ksp_aerocalc">Contribute to the project on github!</a><br /><a href="https://github.com/alterbaron/ksp_aerocalc/blob/master/AUTHORS">Authors</a></p>
+		</div>
+	</div>
+	<script src="https://code.jquery.com/jquery.js"></script>
+	<script src="js/bootstrap.min.js"></script>
+	<script src="js/aerocalc.js"></script>
+	<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-39191083-1']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
+	</body>
+</html>
