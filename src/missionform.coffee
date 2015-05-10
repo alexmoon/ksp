@@ -82,6 +82,24 @@ class MissionForm
     
     @form.bind 'reset', (event) => setTimeout((=> setOrigin('Kerbin'); setDestination('Duna')), 0)
     @form.submit ((event) => event.preventDefault(); $(@).trigger('submit'))
+        
+    @parseParameters()
+    $(window).on 'hashchange', => @parseParameters()
+  
+  parseParameters: ->
+    params = location.hash.split('/')
+    if params.length > 9
+      @setOrigin(params[1])
+      $('#initialOrbit').val(params[2])
+      @setDestination(params[3])
+      $('#finalOrbit').val(params[4])
+      if (params[5] == 'true') != $('#noInsertionBurnCheckbox').is(':checked')
+        $('#noInsertionBurnCheckbox').click()
+      $('#transferTypeSelect').val(params[6])
+      $(if params[7] == 'true' then '#earthTime' else '#kerbalTime').click()
+      $('#earliestDepartureYear').val(params[8])
+      $('#earliestDepartureDay').val(params[9])
+      @adjustLatestDeparture()
   
   origin: ->
     CelestialBody[$('#originSelect').val()]
@@ -162,7 +180,8 @@ class MissionForm
     else
       initialOrbitalVelocity = origin.circularOrbitVelocity(initialOrbit * 1e3)
         
-    if $('#noInsertionBurnCheckbox').is(":checked")
+    noInsertionBurn = $('#noInsertionBurnCheckbox').is(":checked")
+    if noInsertionBurn
       finalOrbitalVelocity = null
     else if !destination.mass? or +finalOrbit == 0
       finalOrbitalVelocity = 0
@@ -175,6 +194,10 @@ class MissionForm
     
     shortestTimeOfFlight = KerbalTime.fromDuration(0, +$('#shortestTimeOfFlight').val()).t
     yScale = KerbalTime.fromDuration(0, +$('#longestTimeOfFlight').val()).t - shortestTimeOfFlight
+
+    # build url from mission parameters
+    params = [$('#originSelect').val(), initialOrbit, $('#destinationSelect').val(), finalOrbit, noInsertionBurn, transferType, $('#earthTime').is(':checked'), $('#earliestDepartureYear').val(), $('#earliestDepartureDay').val()]
+    location.hash = '#/' + params.join('/')
     
     mission = {
       transferType: transferType
