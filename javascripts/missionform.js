@@ -184,7 +184,32 @@
           return $(_this).trigger('submit');
         };
       })(this)));
+      this.parseParameters();
+      $(window).on('hashchange', (function(_this) {
+        return function() {
+          return _this.parseParameters();
+        };
+      })(this));
     }
+
+    MissionForm.prototype.parseParameters = function() {
+      var params;
+      params = location.hash.split('/');
+      if (params.length > 9) {
+        this.setOrigin(params[1]);
+        $('#initialOrbit').val(params[2]);
+        this.setDestination(params[3]);
+        $('#finalOrbit').val(params[4]);
+        if ((params[5] === 'true') !== $('#noInsertionBurnCheckbox').is(':checked')) {
+          $('#noInsertionBurnCheckbox').click();
+        }
+        $('#transferTypeSelect').val(params[6]);
+        $(params[7] === 'true' ? '#earthTime' : '#kerbalTime').click();
+        $('#earliestDepartureYear').val(params[8]);
+        $('#earliestDepartureDay').val(params[9]);
+        return this.adjustLatestDeparture();
+      }
+    };
 
     MissionForm.prototype.origin = function() {
       return CelestialBody[$('#originSelect').val()];
@@ -303,7 +328,7 @@
     };
 
     MissionForm.prototype.mission = function() {
-      var destination, earliestDeparture, finalOrbit, finalOrbitalVelocity, initialOrbit, initialOrbitalVelocity, latestDeparture, mission, origin, shortestTimeOfFlight, transferType, xScale, yScale;
+      var destination, earliestDeparture, finalOrbit, finalOrbitalVelocity, initialOrbit, initialOrbitalVelocity, latestDeparture, mission, noInsertionBurn, origin, params, shortestTimeOfFlight, transferType, xScale, yScale;
       origin = this.origin();
       destination = this.destination();
       initialOrbit = $('#initialOrbit').val().trim();
@@ -314,7 +339,8 @@
       } else {
         initialOrbitalVelocity = origin.circularOrbitVelocity(initialOrbit * 1e3);
       }
-      if ($('#noInsertionBurnCheckbox').is(":checked")) {
+      noInsertionBurn = $('#noInsertionBurnCheckbox').is(":checked");
+      if (noInsertionBurn) {
         finalOrbitalVelocity = null;
       } else if ((destination.mass == null) || +finalOrbit === 0) {
         finalOrbitalVelocity = 0;
@@ -326,6 +352,8 @@
       xScale = latestDeparture - earliestDeparture;
       shortestTimeOfFlight = KerbalTime.fromDuration(0, +$('#shortestTimeOfFlight').val()).t;
       yScale = KerbalTime.fromDuration(0, +$('#longestTimeOfFlight').val()).t - shortestTimeOfFlight;
+      params = [$('#originSelect').val(), initialOrbit, $('#destinationSelect').val(), finalOrbit, noInsertionBurn, transferType, $('#earthTime').is(':checked'), $('#earliestDepartureYear').val(), $('#earliestDepartureDay').val()];
+      location.hash = '#/' + params.join('/');
       return mission = {
         transferType: transferType,
         originBody: origin,
