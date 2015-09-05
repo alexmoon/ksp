@@ -3,7 +3,12 @@ class KerbalTime
   @hoursPerDay: 6
   @daysPerYear: 426
   
-  @setDateFormat: (@hoursPerDay, @daysPerYear) -> $(@).trigger('dateFormatChanged')
+  @setDateFormat: (newHoursPerDay, newDaysPerYear) ->
+    oldHoursPerDay = @hoursPerDay
+    oldDaysPerYear = @daysPerYear
+    @hoursPerDay = newHoursPerDay
+    @daysPerYear = newDaysPerYear
+    $(@).trigger('dateFormatChanged', [oldHoursPerDay, oldDaysPerYear])
   
   @secondsPerDay: -> @hoursPerDay * 3600
   
@@ -23,7 +28,8 @@ class KerbalTime
     components.shift()
     @fromDate(components...)
 
-  constructor: (@t) ->
+  constructor: (t) ->
+    @t = if t.constructor == KerbalTime then t.t else t
   
   hms: ->
     hours = (@t / 3600) | 0
@@ -40,23 +46,26 @@ class KerbalTime
     days = days % KerbalTime.daysPerYear
     [years, days, hours, mins, secs]
   
+  toDays: ->
+    @t / KerbalTime.secondsPerDay()
+    
   toDate: ->
     [years, days, hours, mins, secs] = @ydhms()
     [years + 1, days + 1, hours, mins, secs]
   
   toDateString: ->
     [year, day, hour, min, sec] = @toDate()
-    "Year #{year}, day #{day} at #{KerbalTime.hmsString(hour, min, sec.toFixed())}"
+    "Year #{year}, day #{day} at #{KerbalTime.hmsString(hour, min, Math.round(sec))}"
 
   toShortDateString: (t) ->
     [year, day, hour, min, sec] = @toDate()
-    "#{year}/#{day} #{KerbalTime.hmsString(hour, min, sec.toFixed())}"
+    "#{year}/#{day} #{KerbalTime.hmsString(hour, min, Math.round(sec))}"
 
   toDurationString: (t) ->
     [years, days, hours, mins, secs] = @ydhms()
     result = ""
     result += years + " years " if years > 0
     result += days + " days " if years > 0 or days > 0
-    result + KerbalTime.hmsString(hours, mins, secs)
+    result + KerbalTime.hmsString(hours, mins, Math.round(secs))
 
 (exports ? this).KerbalTime = KerbalTime

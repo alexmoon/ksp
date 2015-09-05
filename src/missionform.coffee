@@ -1,9 +1,9 @@
-(exports ? this).prepareOrigins = prepareOrigins = ->
+(exports ? this).prepareOrigins = prepareOrigins = (selectedOrigin = 'Kerbin') ->
   originSelect = $('#originSelect')
   referenceBodySelect = $('#referenceBodySelect')
   
   # Reset the origin and reference body select boxes
-  originSelect .empty()
+  originSelect.empty()
   referenceBodySelect.empty()
   
   # Add Kerbol to the reference body select box
@@ -43,8 +43,7 @@
       addPlanetGroup(name, originGroup, originSelect, 2)
       addPlanetGroup(name, referenceBodyGroup, referenceBodySelect, 1)
   
-  # Select Kerbin as the default origin, or the first option if Kerbin is missing
-  originSelect.val('Kerbin')
+  originSelect.val(selectedOrigin)
   originSelect.prop('selectedIndex', 0) unless originSelect.val()?
 
 class MissionForm
@@ -53,23 +52,39 @@ class MissionForm
     
     $('.altitude').tooltip(container: 'body')
     
-    $('#earthTime').click (=> KerbalTime.setDateFormat(24, 365); updateAdvancedControls.call(@))
-    $('#kerbinTime').click (=> KerbalTime.setDateFormat(6, 426); updateAdvancedControls.call(@))
+    $('#earthTime').click => KerbalTime.setDateFormat(24, 365)
+    $('#kerbinTime').click => KerbalTime.setDateFormat(6, 426)
     $('#earthTime').click() if $('#earthTime').prop('checked')
+    
+    $(KerbalTime).on 'dateFormatChanged', (event, oldHoursPerDay, oldDaysPerYear) =>
+      departureDates = ['earliest', 'latest']
+      for departureDate in departureDates
+        oldHours = ((+$("##{departureDate}DepartureYear").val() - 1) * oldDaysPerYear + (+$("##{departureDate}DepartureDay").val() - 1)) * oldHoursPerDay
+        newDate = KerbalTime.fromDuration(0, 0, oldHours).toDate()
+        $("##{departureDate}DepartureYear").val(newDate[0])
+        $("##{departureDate}DepartureDay").val(newDate[1])
+      
+      timesOfFlight = ['shortest', 'longest']
+      oldMinHours = (+$("#shortestTimeOfFlight").val()) * oldHoursPerDay
+      oldMaxHours = (+$("#longestTimeOfFlight").val()) * oldHoursPerDay
+      $("#shortestTimeOfFlight").val(+(oldMinHours / KerbalTime.hoursPerDay).toFixed(2))
+      $("#longestTimeOfFlight").val(+(oldMaxHours / KerbalTime.hoursPerDay).toFixed(2))
     
     $('#originSelect').change (event) => @setOrigin($(event.target).val())
     $('#destinationSelect').change (event) => @setDestination($(event.target).val())
     @setOrigin('Kerbin')
     @setDestination('Duna')
     
-    $('#originAddBtn').click (event) => @celestialBodyForm.add()
-    $('#originEditBtn').click (event) => @celestialBodyForm.edit(@origin())
-  
+    $('#originAddBtn').click (event) => @celestialBodyForm.add(null, (name) => @originBodyChanged(name))
+    $('#originEditBtn').click (event) =>
+      @celestialBodyForm.edit(@origin(), false, (name) => @originBodyChanged(name))
+    
     $('#destinationAddBtn').click (event) =>
       referenceBody = @origin().orbit.referenceBody
-      @celestialBodyForm.add(referenceBody)
+      @celestialBodyForm.add(referenceBody, (name) => @destinationBodyChanged(name))
   
-    $('#destinationEditBtn').click (event) => @celestialBodyForm.edit(@destination(), true)
+    $('#destinationEditBtn').click (event) =>
+      @celestialBodyForm.edit(@destination(), true, (name) => @destinationBodyChanged(name))
       
     $('#noInsertionBurnCheckbox').change (event) =>
       $('#finalOrbit').attr("disabled", $(event.target).is(":checked")) if @destination().mass?
@@ -80,7 +95,12 @@ class MissionForm
     $('#shortestTimeOfFlight,#longestTimeOfFlight').change (event) ->
       setTimeOfFlight(+$('#shortestTimeOfFlight').val(), +$('#longestTimeOfFlight').val(), event.target.id == 'shortestTimeOfFlight')
     
-    @form.bind 'reset', (event) => setTimeout((=> setOrigin('Kerbin'); setDestination('Duna')), 0)
+    @form.bind 'reset', (event) =>
+      setTimeout((=>
+        if $('#earthTime').prop('checked') then $('#earthTime').click() else $('#kerbinTime').click()
+        @setOrigin('Kerbin')
+        @setDestination('Duna')
+      ), 0)
     @form.submit ((event) => event.preventDefault(); $(@).trigger('submit'))
   
   origin: ->
@@ -90,28 +110,44 @@ class MissionForm
     CelestialBody[$('#destinationSelect').val()]
   
   setOrigin: (newOriginName) ->
-    $('#originSelect').val(newOriginName)
     origin = CelestialBody[newOriginName]
-    referenceBody = origin.orbit.referenceBody
+    if origin?
+      $('#originSelect').val(newOriginName)
+      referenceBody = origin.orbit.referenceBody
     
-    $('#initialOrbit').attr("disabled", !origin.mass?)
+      $('#initialOrbit').attr("disabled", !origin.mass?)
     
-    s = $('#destinationSelect')
-    previousDestination = s.val()
-    s.empty()
-    bodies = Object.keys(referenceBody.children())
-    bodies.sort((a,b) -> CelestialBody[a].orbit.semiMajorAxis - CelestialBody[b].orbit.semiMajorAxis)
-    s.append($('<option>').text(name)) for name in bodies when CelestialBody[name] != origin
-    s.val(previousDestination)
-    s.prop('selectedIndex', 0) unless s.val()?
-    s.prop('disabled', s[0].childNodes.length == 0)
+      s = $('#destinationSelect')
+      previousDestination = s.val()
+      s.empty()
+      bodies = Object.keys(referenceBody.children())
+      bodies.sort((a,b) -> CelestialBody[a].orbit.semiMajorAxis - CelestialBody[b].orbit.semiMajorAxis)
+      s.append($('<option>').text(name)) for name in bodies when CelestialBody[name] != origin
+      s.val(previousDestination)
+      s.prop('selectedIndex', 0) unless s.val()?
+      s.prop('disabled', s[0].childNodes.length == 0)
     
-    updateAdvancedControls.call(@)
+      updateAdvancedControls.call(@)
   
   setDestination: (newDestinationName) ->
-    $('#destinationSelect').val(newDestinationName)
-    $('#finalOrbit').attr("disabled", !CelestialBody[newDestinationName].mass?)
-    updateAdvancedControls.call(@)
+    origin = CelestialBody[$('#originSelect').val()]
+    destination = CelestialBody[newDestinationName]
+    if destination? and origin.orbit.referenceBody == destination.orbit.referenceBody
+      $('#destinationSelect').val(newDestinationName)
+      $('#finalOrbit').attr("disabled", !destination.mass?)
+      updateAdvancedControls.call(@)
+  
+  originBodyChanged: (newOriginName) ->
+    originalDestinationName = $('#destinationSelect').val()
+    prepareOrigins()
+    @setOrigin(newOriginName)
+    @setDestination(originalDestinationName)
+  
+  destinationBodyChanged: (newDestinationName) ->
+    originalOriginName = $('#originSelect').val()
+    prepareOrigins()
+    @setOrigin(originalOriginName)
+    @setDestination(newDestinationName)
   
   advancedControlsVisible: ->
     $('#showAdvancedControls').text().indexOf('Hide') != -1

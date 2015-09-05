@@ -18,7 +18,7 @@ class CelestialBodyForm
     $('#meanAnomalyAtEpoch', @form).blur (event) => @validateMeanAnomaly(event.target)
     $('#timeOfPeriapsisPassage', @form).blur (event) => @validateDate(event.target)
     
-  add: (referenceBody = null) ->
+  add: (referenceBody, @callback) ->
     $('.form-group', @form).removeClass('has-error')
     $('.help-block', @form).hide()
     
@@ -36,7 +36,7 @@ class CelestialBodyForm
     
     @form.modal()
   
-  edit: (body, fixedReferenceBody = false) ->
+  edit: (body, fixedReferenceBody, @callback) ->
     $('.form-group', @form).removeClass('has-error')
     $('.help-block', @form).hide()
     
@@ -89,7 +89,7 @@ class CelestialBodyForm
       mass = +$('#planetMass').val()
       radius = +$('#planetRadius').val() * 1000
     else
-      timeOfPeriapsisPassage = KerbalTime.parse($('#timeOfPeriapsisPassage').val())
+      timeOfPeriapsisPassage = KerbalTime.parse($('#timeOfPeriapsisPassage').val()).t
     
     # Create the orbit and celestial body
     orbit = new Orbit(referenceBody, semiMajorAxis, eccentricity, inclination,
@@ -101,22 +101,11 @@ class CelestialBodyForm
     newBody = CelestialBody[name] = new CelestialBody(mass, radius, null, orbit)
     body.orbit.referenceBody = newBody for k, body of originalBody.children() if originalBody?
     
-    # Update the origin and destination select boxes
-    if $('#referenceBodySelect').prop('disabled')
-      originalOrigin = $('#originSelect').val()
-      prepareOrigins()
-      $('#originSelect').val(originalOrigin).change()
-      $('#destinationSelect').val(name).change()
-    else
-      originalDestination = $('#destinationSelect').val()
-      prepareOrigins()
-      $('#originSelect').val(name).change()
-      if CelestialBody[originalDestination].orbit.referenceBody == referenceBody
-        $('#destinationSelect').val(originalDestination).change()
-    updateAdvancedControls()
-    
     # Close the modal
     @form.modal('hide')
+    
+    @callback(name)
+    @callback = null
 
   # Input validations
   validateName: (input) ->
@@ -190,7 +179,7 @@ class CelestialBodyForm
     $('#bodySaveBtn').prop('disabled', $('#bodyForm .form-group.has-error:visible').length > 0)
 
   validateDate: (input) ->
-    $input = $(this)
+    $input = $(input)
     val = $input.val()
     if isBlank(val)
       $input.closest('.form-group').addClass('has-error')
