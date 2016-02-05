@@ -278,9 +278,18 @@ insertionToCircularDeltaV = (body, vsoi, v0) ->
   rsoi = body.sphereOfInfluence
   Math.sqrt(vsoi * vsoi + 2 * v0 * v0 - 2 * mu / rsoi) - v0 # Eq 4.15 Velocity at periapsis
 
-ejectionAngle = (vsoi, theta, prograde) ->
-  # Normalize and componentize the soi velocity vector
-  [ax, ay, az] = normalize(vsoi)
+ejectionAngleFromPeriapsis = (originBody, initialOrbitalVelocity, ejectionDeltaV) ->
+  mu = originBody.gravitationalParameter
+  rsoi = originBody.sphereOfInfluence
+  initialOrbitRadius = mu / (initialOrbitalVelocity * initialOrbitalVelocity)
+  v1 = Math.sqrt(ejectionDeltaV * ejectionDeltaV + 2 * initialOrbitalVelocity * initialOrbitalVelocity - 2 * mu / rsoi) # Eq 4.15 Velocity at periapsis
+  e = initialOrbitRadius * v1 * v1 / mu - 1 # Ejection orbit eccentricity
+  a = initialOrbitRadius / (1 - e) # Ejection orbit semi-major axis
+  theta = Math.acos((a * (1 - e * e) - rsoi) / (e * rsoi)) # Eq. 4.82 True anomaly at SOI
+  theta + Math.asin(v1 * initialOrbitRadius / (ejectionDeltaV * rsoi)) # Eq 4.23 Zenith angle at SOI
+  
+ejectionPeriapsisDirection = (vsoi, theta) ->
+  # Requires |vsoi| == 1 and cos(theta) <= 0
   cosTheta = Math.cos(theta)
   
   # We have two equations of two unknowns (vx, vy):
@@ -289,15 +298,16 @@ ejectionAngle = (vsoi, theta, prograde) ->
   #   vz = 0  [Perpendicular to z-axis]
   #
   # Solution is defined iff:
-  #   ay != 0 [because we are solving for vx first]
+  #   vsoi[1] != 0 [because we are solving for vx first]
+  #   |sin(theta)| >= |vsoi[2]| [there is a valid orbit with periapsis in the equatorial plane]
   
   # Intermediate terms
-  g = -ax / ay
+  g = -vsoi[0] / vsoi[1]
   
   # Quadratic coefficients
   a = 1 + g * g
-  b = 2 * g * cosTheta / ay
-  c = cosTheta * cosTheta / (ay * ay) - 1
+  b = 2 * g * cosTheta / vsoi[1]
+  c = cosTheta * cosTheta / (vsoi[1] * vsoi[1]) - 1
   
   # Quadratic formula without loss of significance (Numerical Recipes eq. 5.6.4)
   if b < 0
@@ -307,17 +317,20 @@ ejectionAngle = (vsoi, theta, prograde) ->
     
   # Solution
   vx = q / a
-  vy = g * vx + cosTheta / ay
+  vy = g * vx + cosTheta / vsoi[1]
   
-  if sign(crossProduct([vx, vy, 0], [ax, ay, az])[2]) != sign(Math.PI - theta) # Wrong orbital direction
+  if sign(crossProduct([vx, vy, 0], vsoi)[2]) < 0 # Wrong orbital direction
     vx = c / q
-    vy = g * vx + cosTheta / ay
+    vy = g * vx + cosTheta / vsoi[1]
   
-  prograde = [prograde[0], prograde[1], 0] # Project the prograde vector onto the XY plane
-  if crossProduct([vx, vy, 0], prograde)[2] < 0
-    TWO_PI - Math.acos(numeric.dotVV([vx, vy, 0], prograde))
+  [vx, vy, 0]
+  
+ejectionAngleToPrograde = (periapsis, prograde) ->
+  prograde = normalize([prograde[0], prograde[1], 0]) # Project the prograde vector onto the XY plane
+  if crossProduct(periapsis, prograde)[2] < 0
+    TWO_PI - Math.acos(numeric.dotVV(periapsis, prograde))
   else
-    Math.acos(numeric.dotVV([vx, vy, 0], prograde))
+    Math.acos(numeric.dotVV(periapsis, prograde))
 
 Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity, p0, v0, n0, p1, v1, planeChangeAngleToIntercept) ->
   # Fill in missing values
@@ -413,9 +426,20 @@ Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbi
   
   ejectionDeltaVector = numeric.subVV(ejectionVelocity, v0)
   ejectionDeltaV = numeric.norm2(ejectionDeltaVector) # This is actually the hyperbolic excess velocity if ejecting from a parking orbit
-  ejectionInclination = Math.asin(ejectionDeltaVector[2] / ejectionDeltaV)
   if initialOrbitalVelocity
-    ejectionDeltaV = circularToEscapeDeltaV(originBody, initialOrbitalVelocity, ejectionDeltaV, ejectionInclination)
+    ejectionDirection = numeric.divVS(ejectionDeltaVector, ejectionDeltaV)
+    theta = ejectionAngleFromPeriapsis(originBody, initialOrbitalVelocity, ejectionDeltaV)
+    
+    if Math.abs(Math.sin(theta)) < Math.abs(ejectionDirection[2])
+      # There is no ejection orbit with a periapsis on the equatorial plane that leaves the SoI with ejectionDeltaVector velocity
+      ejectionDeltaV = ejectionInclination = ejectionAngle = NaN
+    else
+      periapsisDirection = ejectionPeriapsisDirection(ejectionDirection, theta)
+      ejectionAngle = ejectionAngleToPrograde(periapsisDirection, normalize(v0))
+      ejectionInclination = Math.acos(normalize(crossProduct(periapsisDirection, ejectionDirection))[2])
+      ejectionDeltaV = circularToEscapeDeltaV(originBody, initialOrbitalVelocity, ejectionDeltaV, ejectionInclination)
+  else
+    ejectionInclination = Math.asin(ejectionDeltaVector[2] / ejectionDeltaV)
 
   if finalOrbitalVelocity?
     insertionDeltaVector = numeric.subVV(insertionVelocity, v1)
@@ -432,6 +456,7 @@ Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbi
     ejectionVelocity: ejectionVelocity
     ejectionDeltaVector: ejectionDeltaVector
     ejectionInclination: ejectionInclination
+    ejectionAngle: ejectionAngle
     ejectionDeltaV: ejectionDeltaV
     planeChangeAngleToIntercept: planeChangeAngleToIntercept
     planeChangeDeltaV: planeChangeDeltaV
@@ -463,18 +488,10 @@ Orbit.transferDetails = (transfer, originBody, t0, initialOrbitalVelocity) ->
     transfer.ejectionNormalDeltaV = v1 * Math.sin(ejectionInclination)
     transfer.ejectionProgradeDeltaV = v1 * Math.cos(ejectionInclination) - initialOrbitalVelocity
     transfer.ejectionHeading = Math.atan2(transfer.ejectionProgradeDeltaV, transfer.ejectionNormalDeltaV)
-    
-    # Ejection angle to prograde
-    initialOrbitRadius = mu / (initialOrbitalVelocity * initialOrbitalVelocity)
-    e = initialOrbitRadius * v1 * v1 / mu - 1 # Ejection orbit eccentricity
-    a = initialOrbitRadius / (1 - e) # Ejection orbit semi-major axis
-    theta = Math.acos((a * (1 - e * e) - rsoi) / (e * rsoi)) # Eq. 4.82 True anomaly at SOI
-    theta += Math.asin(v1 * initialOrbitRadius / (vsoi * rsoi)) # Eq 4.23 Zenith angle at SOI
-    transfer.ejectionAngle = ejectionAngle(ejectionDeltaVector, theta, normalize(v0))
   else
     ejectionDeltaV = transfer.ejectionDeltaV
-    positionDirection = numeric.divVS(p0, numeric.norm2(p0))
-    progradeDirection = numeric.divVS(v0, numeric.norm2(v0))
+    positionDirection = normalize(p0)
+    progradeDirection = normalize(v0)
     n0 = originBody.orbit.normalVector()
     burnDirection = numeric.divVS(ejectionDeltaVector, ejectionDeltaV)
     
@@ -577,12 +594,12 @@ Orbit.courseCorrection = (transferOrbit, destinationOrbit, burnTime, eta) ->
   deltaV = numeric.norm2(deltaVector)
   
   burnDirection = numeric.divVS(deltaVector, deltaV)
-  positionDirection = numeric.divVS(p0, numeric.norm2(p0))
+  positionDirection = normalize(p0)
   
   pitch = Math.asin(numeric.dotVV(burnDirection, positionDirection))
   heading = angleInPlane([0,0,1], burnDirection, positionDirection)
   
-  progradeDirection = numeric.divVS(v0, numeric.norm2(v0))
+  progradeDirection = normalize(v0)
   progradeDeltaV = numeric.dotVV(deltaVector, progradeDirection)
   normalDeltaV = numeric.dotVV(deltaVector, n0)
   radialDeltaV = Math.sqrt(deltaV*deltaV - progradeDeltaV*progradeDeltaV - normalDeltaV*normalDeltaV)
