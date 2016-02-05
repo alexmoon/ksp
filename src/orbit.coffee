@@ -437,6 +437,7 @@ Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbi
       periapsisDirection = ejectionPeriapsisDirection(ejectionDirection, theta)
       ejectionAngle = ejectionAngleToPrograde(periapsisDirection, normalize(v0))
       ejectionInclination = Math.acos(normalize(crossProduct(periapsisDirection, ejectionDirection))[2])
+      ejectionInclination *= sign(Math.PI - theta) * sign(ejectionDirection[2])
       ejectionDeltaV = circularToEscapeDeltaV(originBody, initialOrbitalVelocity, ejectionDeltaV, ejectionInclination)
   else
     ejectionInclination = Math.asin(ejectionDeltaVector[2] / ejectionDeltaV)
