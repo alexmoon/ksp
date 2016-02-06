@@ -332,6 +332,21 @@ ejectionAngleToPrograde = (periapsis, prograde) ->
   else
     Math.acos(numeric.dotVV(periapsis, prograde))
 
+ejectionDetails = (ejectionDeltaVector, ejectionDeltaV, originBody, initialOrbitalVelocity, progradeDirection) ->
+  ejectionDirection = numeric.divVS(ejectionDeltaVector, ejectionDeltaV)
+  theta = ejectionAngleFromPeriapsis(originBody, initialOrbitalVelocity, ejectionDeltaV)
+  
+  if Math.abs(Math.sin(theta)) < Math.abs(ejectionDirection[2])
+    # There is no ejection orbit with a periapsis on the equatorial plane that leaves the SoI with ejectionDeltaVector velocity
+    [NaN, NaN, NaN]
+  else
+    periapsisDirection = ejectionPeriapsisDirection(ejectionDirection, theta)
+    ejectionAngle = ejectionAngleToPrograde(periapsisDirection, progradeDirection)
+    ejectionInclination = Math.acos(normalize(crossProduct(periapsisDirection, ejectionDirection))[2])
+    ejectionInclination *= sign(Math.PI - theta) * sign(ejectionDirection[2])
+    ejectionDeltaV = circularToEscapeDeltaV(originBody, initialOrbitalVelocity, ejectionDeltaV, ejectionInclination)
+    [ejectionDeltaV, ejectionInclination, ejectionAngle]
+
 Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity, p0, v0, n0, p1, v1, planeChangeAngleToIntercept) ->
   # Fill in missing values
   referenceBody = originBody.orbit.referenceBody
@@ -427,18 +442,8 @@ Orbit.transfer = (transferType, originBody, destinationBody, t0, dt, initialOrbi
   ejectionDeltaVector = numeric.subVV(ejectionVelocity, v0)
   ejectionDeltaV = numeric.norm2(ejectionDeltaVector) # This is actually the hyperbolic excess velocity if ejecting from a parking orbit
   if initialOrbitalVelocity
-    ejectionDirection = numeric.divVS(ejectionDeltaVector, ejectionDeltaV)
-    theta = ejectionAngleFromPeriapsis(originBody, initialOrbitalVelocity, ejectionDeltaV)
-    
-    if Math.abs(Math.sin(theta)) < Math.abs(ejectionDirection[2])
-      # There is no ejection orbit with a periapsis on the equatorial plane that leaves the SoI with ejectionDeltaVector velocity
-      ejectionDeltaV = ejectionInclination = ejectionAngle = NaN
-    else
-      periapsisDirection = ejectionPeriapsisDirection(ejectionDirection, theta)
-      ejectionAngle = ejectionAngleToPrograde(periapsisDirection, normalize(v0))
-      ejectionInclination = Math.acos(normalize(crossProduct(periapsisDirection, ejectionDirection))[2])
-      ejectionInclination *= sign(Math.PI - theta) * sign(ejectionDirection[2])
-      ejectionDeltaV = circularToEscapeDeltaV(originBody, initialOrbitalVelocity, ejectionDeltaV, ejectionInclination)
+    [ejectionDeltaV, ejectionInclination, ejectionAngle] =
+      ejectionDetails(ejectionDeltaVector, ejectionDeltaV, originBody, initialOrbitalVelocity, normalize(v0))
   else
     ejectionInclination = Math.asin(ejectionDeltaVector[2] / ejectionDeltaV)
 
@@ -513,23 +518,22 @@ Orbit.transferDetails = (transfer, originBody, t0, initialOrbitalVelocity) ->
 Orbit.refineTransfer = (transfer, transferType, originBody, destinationBody, t0, dt, initialOrbitalVelocity, finalOrbitalVelocity) ->
   return transfer unless initialOrbitalVelocity
   
+  originOrbit = originBody.orbit
+  prograde = originBody.orbit.velocityAtTrueAnomaly(originOrbit.trueAnomalyAt(t0))
+  
   for i in [1..10]
     return transfer if isNaN(transfer.deltaV)
-    unless transfer.ejectionAngle?
-      transfer = Orbit.transferDetails(transfer, originBody, t0, initialOrbitalVelocity)
     
     # Calculate the ejection orbit
     mu = originBody.gravitationalParameter
     rsoi = originBody.sphereOfInfluence
     vsoi = numeric.norm2(transfer.ejectionDeltaVector)
-    v1 = Math.sqrt(vsoi * vsoi + 2 * initialOrbitalVelocity * initialOrbitalVelocity - 2 * mu / rsoi) # Eq 4.15 Velocity at periapsis
+    v0 = Math.sqrt(vsoi * vsoi + 2 * initialOrbitalVelocity * initialOrbitalVelocity - 2 * mu / rsoi) # Eq 4.15 Velocity at periapsis
     initialOrbitRadius = mu / (initialOrbitalVelocity * initialOrbitalVelocity)
-    e = initialOrbitRadius * v1 * v1 / mu - 1 # Ejection orbit eccentricity
+    e = initialOrbitRadius * v0 * v0 / mu - 1 # Ejection orbit eccentricity
     a = initialOrbitRadius / (1 - e) # Ejection orbit semi-major axis
     nu = Math.acos((a * (1 - e * e) - rsoi) / (e * rsoi)) # Eq. 4.82 True anomaly at SOI
   
-    originOrbit = originBody.orbit
-    prograde = originOrbit.velocityAtTrueAnomaly(originOrbit.trueAnomalyAt(t0))
     longitudeOfAscendingNode = Math.atan2(prograde[1], prograde[0]) - transfer.ejectionAngle
     argumentOfPeriapsis = 0
     if transfer.ejectionInclination < 0
@@ -544,17 +548,13 @@ Orbit.refineTransfer = (transfer, transferType, originBody, destinationBody, t0,
   
     # Calculate the actual position and time of SoI exit
     t1 = ejectionOrbit.timeAtTrueAnomaly(nu, t0)
-    dtFromSOI = dt - (t1 - t0) # Offset dt by the time it takes to exit the SoI
     originTrueAnomalyAtSOI = originOrbit.trueAnomalyAt(t1)
     p1 = numeric.addVV(ejectionOrbit.positionAtTrueAnomaly(nu), originOrbit.positionAtTrueAnomaly(originTrueAnomalyAtSOI))
-    originVelocityAtSOI = originOrbit.velocityAtTrueAnomaly(originTrueAnomalyAtSOI)
+    v1 = originOrbit.velocityAtTrueAnomaly(originTrueAnomalyAtSOI)
+    n1 = normalize(crossProduct(p1, numeric.addVV(v1, transfer.ejectionDeltaVector)))
   
-    # Create a fake orbit from the position at SoI exit and the origin velocity at time of SoI exit
-    orbit = Orbit.fromPositionAndVelocity(originOrbit.referenceBody, p1, originVelocityAtSOI, t1)
-    tempBody = new CelestialBody(null, null, null, orbit)
-    
     # Re-calculate the transfer
-    transfer = Orbit.transfer(transferType, tempBody, destinationBody, t1, dtFromSOI, 0, finalOrbitalVelocity, p1, originVelocityAtSOI)
+    transfer = Orbit.transfer(transferType, originBody, destinationBody, t1, dt - (t1 - t0), 0, finalOrbitalVelocity, p1, v1, n1)
     
     if i & 1
       lastEjectionDeltaVector = transfer.ejectionDeltaVector
@@ -564,8 +564,8 @@ Orbit.refineTransfer = (transfer, transferType, originBody, destinationBody, t0,
       transfer.ejectionDeltaV = numeric.norm2(transfer.ejectionDeltaVector)
     
     # Modify the ejection and total delta-v to take the initial orbit into account
-    transfer.orbit = Orbit.fromPositionAndVelocity(originOrbit.referenceBody, p1, transfer.ejectionVelocity, t1)
-    transfer.ejectionDeltaV = circularToEscapeDeltaV(originBody, initialOrbitalVelocity, transfer.ejectionDeltaV, transfer.ejectionInclination)
+    [transfer.ejectionDeltaV, transfer.ejectionInclination, transfer.ejectionAngle] =
+      ejectionDetails(transfer.ejectionDeltaVector, transfer.ejectionDeltaV, originBody, initialOrbitalVelocity, normalize(prograde))
     transfer.deltaV = transfer.ejectionDeltaV + transfer.planeChangeDeltaV + transfer.insertionDeltaV
   
   transfer
