@@ -1,0 +1,38 @@
+CACHE MANIFEST
+
+# Build 1
+
+
+# Generic libraries
+stylesheets/bootstrap.min.css
+stylesheets/bootstrap-theme.min.css
+javascripts/jquery-2.0.0.min.js
+javascripts/numeric-1.2.6.min.js
+javascripts/bootstrap.min.js
+
+# Fonts
+fonts/glyphicons-halflings-regular.eot
+fonts/glyphicons-halflings-regular.svg
+fonts/glyphicons-halflings-regular.ttf
+fonts/glyphicons-halflings-regular.woff
+
+# Images
+img/forkme_right_darkblue_121621.png
+img/glyphicons-halflings-white.png
+img/glyphicons-halflings.png
+https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png
+https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png
+https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
+
+# Project libraries
+javascripts/quaternion.js
+javascripts/roots.js
+javascripts/lambert.js
+javascripts/orbit.js
+javascripts/celestialbodies.js
+javascripts/kerbaltime.js
+javascripts/celestialbodyform.js
+javascripts/missionform.js
+javascripts/porkchopplot.js
+javascripts/porkchopworker.js
+javascripts/porkchop.js
