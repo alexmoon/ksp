@@ -368,12 +368,20 @@
     };
 
     updateAdvancedControls = function() {
-      var departureRange, destination, hohmannTransfer, hohmannTransferTime, maxDays, maxDeparture, minDays, minDeparture, origin, referenceBody, synodicPeriod;
+      var departureRange, destination, destinationApoapsis, destinationPeriapsis, maxDays, maxDeparture, maxHohmannTransferTime, minDays, minDeparture, minHohmannTransferTime, origin, originApopsis, originPeriapsis, referenceBody, synodicPeriod;
       origin = this.origin();
       destination = this.destination();
       referenceBody = origin.orbit.referenceBody;
-      hohmannTransfer = Orbit.fromApoapsisAndPeriapsis(referenceBody, destination.orbit.semiMajorAxis, origin.orbit.semiMajorAxis, 0, 0, 0, 0);
-      hohmannTransferTime = hohmannTransfer.period() / 2;
+      originPeriapsis = origin.orbit.periapsis();
+      originApopsis = origin.orbit.apoapsis();
+      destinationPeriapsis = destination.orbit.periapsis();
+      destinationApoapsis = destination.orbit.apoapsis();
+      if (destinationPeriapsis <= originApopsis && originPeriapsis <= destinationApoapsis) {
+        minHohmannTransferTime = 0;
+      } else {
+        minHohmannTransferTime = Orbit.fromApoapsisAndPeriapsis(referenceBody, destinationPeriapsis, originPeriapsis, 0, 0, 0, 0).period() / 2;
+      }
+      maxHohmannTransferTime = Orbit.fromApoapsisAndPeriapsis(referenceBody, destinationApoapsis, originApopsis, 0, 0, 0, 0).period() / 2;
       synodicPeriod = Math.abs(1 / (1 / destination.orbit.period() - 1 / origin.orbit.period()));
       departureRange = Math.min(2 * synodicPeriod, 2 * origin.orbit.period()) / KerbalTime.secondsPerDay();
       if (departureRange < 0.1) {
@@ -385,8 +393,8 @@
       }
       minDeparture = KerbalTime.fromDate($('#earliestDepartureYear').val(), $('#earliestDepartureDay').val()).t / KerbalTime.secondsPerDay();
       maxDeparture = minDeparture + departureRange;
-      minDays = Math.max(hohmannTransferTime - destination.orbit.period(), hohmannTransferTime / 2) / KerbalTime.secondsPerDay();
-      maxDays = minDays + Math.min(2 * destination.orbit.period(), hohmannTransferTime) / KerbalTime.secondsPerDay();
+      minDays = Math.max(minHohmannTransferTime - destination.orbit.period(), minHohmannTransferTime / 2) / KerbalTime.secondsPerDay();
+      maxDays = Math.max(maxHohmannTransferTime - destination.orbit.period(), maxHohmannTransferTime / 2) / KerbalTime.secondsPerDay() + Math.min(2 * destination.orbit.period(), maxHohmannTransferTime) / KerbalTime.secondsPerDay();
       minDays = minDays < 10 ? minDays.toFixed(2) : minDays.toFixed();
       maxDays = maxDays < 10 ? maxDays.toFixed(2) : maxDays.toFixed();
       $('#latestDepartureYear').val((maxDeparture / KerbalTime.daysPerYear | 0) + 1);
